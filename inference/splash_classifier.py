@@ -38,11 +38,15 @@ class SplashClassifier:
         self.session = onnxruntime.InferenceSession(model_path)
 
     def preprocess(self, image):
-        #just make sure the image is 256,256
-        image = cv2.resize(image,(256,256))
-        image = image.astype(np.float32) / 255.0
-        image = np.transpose(image, (2, 0, 1))
-        image = np.expand_dims(image, axis=0)
+        try:
+
+            #just make sure the image is 256,256
+            image = cv2.resize(image,(256,256))
+            image = image.astype(np.float32) / 255.0
+            image = np.transpose(image, (2, 0, 1))
+            image = np.expand_dims(image, axis=0)
+        except:
+            return False
         return image
 
     def postprocess(self, output: np.ndarray):
