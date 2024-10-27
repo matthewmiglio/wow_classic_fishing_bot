@@ -33,6 +33,8 @@ class SimpleGUI:
         self.stats = {
             "bobber_detected": tk.StringVar(value="No"),
             "splash_detected": tk.StringVar(value="No"),
+            'casts': tk.StringVar(value=0),
+            'reels': tk.StringVar(value=0),
         }
 
         ttk.Label(self.stats_frame, text="Bobber Detected").grid(row=0, column=0)
@@ -40,6 +42,12 @@ class SimpleGUI:
 
         ttk.Label(self.stats_frame, text="Splash Detected").grid(row=1, column=0)
         ttk.Label(self.stats_frame, textvariable=self.stats["splash_detected"]).grid(row=1, column=1)
+
+        ttk.Label(self.stats_frame, text="Casts").grid(row=2, column=0)
+        ttk.Label(self.stats_frame, textvariable=self.stats["casts"]).grid(row=2, column=1)
+
+        ttk.Label(self.stats_frame, text="Reels").grid(row=3, column=0)
+        ttk.Label(self.stats_frame, textvariable=self.stats["reels"]).grid(row=3, column=1)
 
     def update_image(self, image_array, image_type='raw'):
         """Update the displayed image."""
