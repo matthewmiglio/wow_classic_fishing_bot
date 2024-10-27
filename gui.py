@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import threading
 from PIL import Image, ImageTk
 import numpy as np
 
@@ -22,7 +23,6 @@ class SimpleGUI:
         self.bobber_image_label = tk.Label(self.image_frame, text="Bobber Image")
         self.bobber_image_label.grid(row=0, column=1)
 
-        # Create labels for images
         self.raw_image_display = tk.Label(self.image_frame)
         self.raw_image_display.grid(row=1, column=0)
 
@@ -48,6 +48,31 @@ class SimpleGUI:
 
         ttk.Label(self.stats_frame, text="Reels").grid(row=3, column=0)
         ttk.Label(self.stats_frame, textvariable=self.stats["reels"]).grid(row=3, column=1)
+
+        # Create Start and Stop buttons
+        self.start_button = ttk.Button(root, text="Start", command=self.start_bot)
+        self.start_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.stop_button = ttk.Button(root, text="Stop", command=self.stop_bot)
+        self.stop_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.bot = None  # Reference to the bot
+
+    def set_bot(self, bot):
+        """Set the bot instance for starting and stopping."""
+        self.bot = bot
+
+    def start_bot(self):
+        """Start the bot."""
+        if self.bot and not self.bot.running_event.is_set():  # Check if bot is not already running
+            self.bot.running_event.set()  # Signal to start running
+            bot_thread = threading.Thread(target=self.bot.run, daemon=True)
+            bot_thread.start()  # Start the bot in a separate thread
+
+    def stop_bot(self):
+        """Stop the bot."""
+        if self.bot:
+            self.bot.stop()  # Signal to stop running
 
     def update_image(self, image_array, image_type='raw'):
         """Update the displayed image."""
