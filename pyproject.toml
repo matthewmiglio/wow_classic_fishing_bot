@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "wow-fishing"
+version = "0.1.0"
+description = ""
+authors = ["Matt Main_PC <matmigg0804@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pyautogui = "^0.9.54"
+numpy = "^2.1.2"
+onnxruntime = "^1.19.2"
+torch = "^2.5.0"
+opencv-python = "^4.10.0.84"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
