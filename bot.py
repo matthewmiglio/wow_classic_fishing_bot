@@ -83,7 +83,6 @@ class WoWFishBot:
         pyautogui.press("z")
         self.casts += 1
         self.update_gui("casts", self.casts)
-        time.sleep(1)
 
     def click_bbox(self, bbox):
         coord = self.calculate_coordinates(bbox)
