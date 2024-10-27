@@ -9,6 +9,7 @@ from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
 from gui import SimpleGUI  # Make sure this import matches your GUI file
 
+
 class WoWFishBot:
     def __init__(self, gui, save_splash_images_toggle=False):
         self.gui = gui
@@ -52,7 +53,7 @@ class WoWFishBot:
         self.focus_wow()
         pyautogui.press("z")
         self.casts += 1
-        self.update_gui('casts',self.casts)
+        self.update_gui("casts", self.casts)
         time.sleep(2)
 
     def click_bbox(self, bbox):
@@ -81,58 +82,59 @@ class WoWFishBot:
         real_x = start_x + (x_ratio * prev_image_dim_x)
         return (real_x, real_y)
 
-    def update_gui(self,stat,value):
-        if stat == 'raw_image':
-            self.gui.update_image(value, 'raw')  # Update the raw image continuously
-        if stat == 'bobber_image':
+    def update_gui(self, stat, value):
+        if stat == "raw_image":
+            self.gui.update_image(value, "raw")  # Update the raw image continuously
+        if stat == "bobber_image":
             try:
                 value = cv2.resize(value, (256, 256))
-                self.gui.update_image(value, 'bobber')
+                self.gui.update_image(value, "bobber")
             except:
                 pass
-        if stat == 'bobber_detected':
-            self.gui.update_stat("bobber_detected",value)
-        if stat == 'splash_detected':
-            self.gui.update_stat("splash_detected", "Yes" if "splash" in value else "No")
-        if stat == 'casts':
-            self.gui.update_stat("casts",value)
-        if stat == 'reels':
-            self.gui.update_stat("reels",value)
-
+        if stat == "bobber_detected":
+            self.gui.update_stat("bobber_detected", value)
+        if stat == "splash_detected":
+            self.gui.update_stat(
+                "splash_detected", "Yes" if "splash" in value else "No"
+            )
+        if stat == "casts":
+            self.gui.update_stat("casts", value)
+        if stat == "reels":
+            self.gui.update_stat("reels", value)
 
     def run(self):
         MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
         print("Initializing Bobber Detector and Splash Classifier modules!")
 
-
-
         while True:
             reeled = False
             base_image = self.screenshot_bobber_roi()
-            self.update_gui('raw_image',base_image)
+            self.update_gui("raw_image", base_image)
 
-            bbox, score = self.bobber_detector.detect_object_in_image(base_image, draw_result=False)
+            bbox, score = self.bobber_detector.detect_object_in_image(
+                base_image, draw_result=False
+            )
 
             if score > MIN_CONFIDENCE_FOR_BOBBER_DETECTION:
                 bobber_image = self.make_bobber_image(bbox, base_image)
-                self.update_gui('bobber_image',bobber_image)
+                self.update_gui("bobber_image", bobber_image)
                 try:
                     bobber_image = self.splash_classifier.preprocess(bobber_image)
                 except Exception as e:
-                    print('Bad bobber bbox. Skipping processing...')
+                    print("Bad bobber bbox. Skipping processing...")
                     continue
 
                 is_splash = self.splash_classifier.run(bobber_image, draw_result=False)
                 is_splash = self.splash_classifier.postprocess(is_splash)
 
-                self.update_gui('bobber_detected','Yes')
-                self.update_gui('splash_detected',is_splash)
+                self.update_gui("bobber_detected", "Yes")
+                self.update_gui("splash_detected", is_splash)
 
                 if "splash" in is_splash:
                     if reeled is False:
                         reeled = True
                         self.reels += 1
-                        self.update_gui('reels',self.reels)
+                        self.update_gui("reels", self.reels)
                     self.click_bbox(bbox)
 
                 if self.save_splash_images_toggle:
@@ -140,15 +142,16 @@ class WoWFishBot:
             else:
                 print("Bobber is not detected!\nStarting fishing...")
                 self.gui.update_stat("bobber_detected", "No")
-                self.gui.update_image(base_image, 'bobber')
+                self.gui.update_image(base_image, "bobber")
                 self.gui.update_stat("splash_detected", "No")
                 self.start_fishing()
                 time.sleep(2)
 
-
     def save_splash_images(self, bbox_image, is_splash) -> bool:
         uid = str(time.time()).replace(".", "") + ".png"
-        path = os.path.join(self.splash_images_dir, "splash" if "splash" in is_splash else "not", uid)
+        path = os.path.join(
+            self.splash_images_dir, "splash" if "splash" in is_splash else "not", uid
+        )
 
         try:
             cv2.imwrite(path, bbox_image)
@@ -157,6 +160,7 @@ class WoWFishBot:
             return False
 
         return True
+
 
 def run_bot_with_gui():
     root = tk.Tk()
@@ -168,6 +172,7 @@ def run_bot_with_gui():
     bot_thread.start()
 
     root.mainloop()
+
 
 if __name__ == "__main__":
     run_bot_with_gui()
