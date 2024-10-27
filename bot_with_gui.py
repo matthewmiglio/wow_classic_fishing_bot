@@ -82,16 +82,15 @@ class WoWFishBot:
 
         while True:
             base_image = self.screenshot_bobber_roi()
+            self.gui.update_image(base_image, 'raw')
             bbox, score = self.bobber_detector.detect_object_in_image(base_image, draw_result=False)
 
             if score > MIN_CONFIDENCE_FOR_BOBBER_DETECTION:
                 try:
                     bobber_image = self.make_bobber_image(bbox, base_image)
-                    self.gui.update_image(base_image, 'raw')
                     self.gui.update_image(bobber_image, 'bobber')
                     bobber_image = self.splash_classifier.preprocess(bobber_image)
                 except Exception as e:
-                    print(f"\n{e}\nSkipping splash_classifier prediction")
                     continue
 
                 is_splash = self.splash_classifier.run(bobber_image, draw_result=False)
@@ -110,7 +109,6 @@ class WoWFishBot:
                 print("Bobber is not detected!\nStarting fishing...")
                 self.gui.update_stat("bobber_detected", "No")
                 self.start_fishing()
-                time.sleep(4)
 
     def save_splash_images(self, bbox_image, is_splash) -> bool:
         uid = str(time.time()).replace(".", "") + ".png"
@@ -118,6 +116,7 @@ class WoWFishBot:
 
         try:
             cv2.imwrite(path, bbox_image)
+
         except Exception as e:
             print(f"Failed to save this splash image:\n{e}")
             return False
@@ -127,7 +126,7 @@ class WoWFishBot:
 def run_bot_with_gui():
     root = tk.Tk()
     gui = SimpleGUI(root)
-    bot = WoWFishBot(gui)
+    bot = WoWFishBot(gui,save_splash_images_toggle=False)
 
     # Run the bot in a separate thread
     bot_thread = threading.Thread(target=bot.run, daemon=True)
