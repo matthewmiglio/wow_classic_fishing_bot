@@ -1,3 +1,4 @@
+from PIL import Image
 import threading
 import pyautogui
 import numpy as np
@@ -7,53 +8,47 @@ import tkinter as tk
 import cv2
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
-from gui import SimpleGUI
+from gui import GUI
 
 
 class WoWFishBot:
-    def __init__(self, gui, save_splash_images_toggle=False):
+    def __init__(self, gui, save_images=False):
         self.gui = gui
         self.bobber_detector = BobberDetector(r"inference\bobber_finder.onnx")
         self.splash_classifier = SplashClassifier(r"inference\splash_classifier.onnx")
-        self.save_splash_images_toggle = save_splash_images_toggle
-        self.splash_images_dir = "splash_images"
+        self.save_splash_images_toggle = save_images
+        self.save_images_dir = "save_images"
 
         self.casts = 0
         self.reels = 0
-        self.splash_prediction_history = []  # used to store the last 8 predictions
-        self.splash_prediction_history_limit = 8
+        self.prediction_history = []  # used to store the last 8 predictions
+        self.splash_prediction_history_limit = 12
 
         self.running_event = threading.Event()  # Control the bot running state
 
-        if self.save_splash_images_toggle:
-            os.makedirs(self.splash_images_dir, exist_ok=True)
-            os.makedirs(os.path.join(self.splash_images_dir, "not"), exist_ok=True)
-            os.makedirs(os.path.join(self.splash_images_dir, "splash"), exist_ok=True)
-
     def add_splash_prediction(self, prediction):
         # add the prediction to the history while removing the oldest
-
         if "not" in prediction:
             prediction = "not"
-        else:
+        elif "splash" in prediction:
             prediction = "splash"
-        self.splash_prediction_history.append(prediction)
+        self.prediction_history.append(prediction)
 
         # if its longer than limit remove the oldest one
-        if len(self.splash_prediction_history) > self.splash_prediction_history_limit:
-            self.splash_prediction_history.remove(self.splash_prediction_history[0])
+        if len(self.prediction_history) > self.splash_prediction_history_limit:
+            self.prediction_history.remove(self.prediction_history[0])
 
-    def last3are_splash(self):
-        if "splash" not in self.splash_prediction_history[-1]:
+    def last_predictions_equal(self, prediction_string, equal_count):
+        if prediction_string not in self.prediction_history[-1]:
             return False
 
-        count = 0
-        for i in self.splash_prediction_history:
-            if "splash" in i:
-                count += 1
+        this_count = 0
+        for i in self.prediction_history:
+            if prediction_string in i:
+                this_count += 1
 
-        if count > 6:
-            self.splash_prediction_history = []
+        if this_count > equal_count:
+            self.prediction_history = []
             return True
 
         return False
@@ -88,7 +83,7 @@ class WoWFishBot:
 
     def click_bbox(self, bbox):
         coord = self.calculate_coordinates(bbox)
-        print(f"CLICKING THIS COORD: {coord}")
+        print("Reeling in the bobber with this coord: ", coord)
         self.send_delayed_click(*coord, wait=1)
 
     def send_delayed_click(self, x, y, wait):
@@ -114,9 +109,14 @@ class WoWFishBot:
 
     def update_gui(self, stat, value):
         if stat == "raw_image":
-            self.gui.update_image(value, "raw")
+            try:
+                value = numpy_img_bgr_to_rgb(value)
+                self.gui.update_image(value, "raw")
+            except:
+                pass
         if stat == "bobber_image":
             try:
+                value = numpy_img_bgr_to_rgb(value)
                 value = cv2.resize(value, (256, 256))
                 self.gui.update_image(value, "bobber")
             except:
@@ -140,6 +140,7 @@ class WoWFishBot:
 
         while self.running_event.is_set():
             base_image = self.screenshot_bobber_roi()
+            self.save_roi_image(base_image)
             self.update_gui("raw_image", base_image)
 
             bbox, score = self.bobber_detector.detect_object_in_image(
@@ -155,7 +156,6 @@ class WoWFishBot:
                 # get the bobber image ready for the splash classifier
                 bobber_image = self.splash_classifier.preprocess(bobber_image)
                 if bobber_image is False:
-                    print("Bad bobber bbox. Skipping processing...")
                     continue
 
                 # classify that bobber image as either a 'splash' or 'not' a splash
@@ -168,10 +168,10 @@ class WoWFishBot:
 
                 # if the bobber is a splash, we click it to reel in the fish
                 self.add_splash_prediction(is_splash)
-                if self.last3are_splash():
+                if self.last_predictions_equal("splash", 6):
                     print(
                         "Splash detected! Reeling in fish...\nSelf.splash_prediction_history: ",
-                        self.splash_prediction_history,
+                        self.prediction_history,
                     )
                     self.reels += 1
                     self.update_gui("reels", self.reels)
@@ -179,39 +179,58 @@ class WoWFishBot:
 
                 # if we want to save the splash images
                 if self.save_splash_images_toggle:
-                    self.save_splash_images(bobber_image, is_splash)
+                    self.save_splash_images(bbox, base_image, is_splash)
 
-            # if no bobber detected at all
+            # if none detected at all
             else:
-                print("Bobber is not detected!\nStarting fishing...")
                 self.gui.update_stat("bobber_detected", "No")
                 self.gui.update_image(base_image, "bobber")
                 self.gui.update_stat("splash_detected", "No")
-                self.start_fishing()
-                time.sleep(2)
+                self.add_splash_prediction("none")
+                if self.last_predictions_equal("none", 11):
+                    print("Starting fishing...")
+                    self.start_fishing()
+                    time.sleep(2)
 
     def stop(self):
         self.running_event.clear()  # Stop the bot
 
-    def save_splash_images(self, bbox_image, is_splash) -> bool:
+    def save_roi_image(self, img):
+        uid = "roi_" + str(time.time()).replace(".", "") + ".png"
+        path = os.path.join(self.save_images_dir, "roi", uid)
+        img = numpy_img_bgr_to_rgb(img)
+
+        img = Image.fromarray(img)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        img.save(path)
+
+    def save_splash_images(self, bbox, img, is_splash) -> bool:
         uid = str(time.time()).replace(".", "") + ".png"
         path = os.path.join(
-            self.splash_images_dir, "splash" if "splash" in is_splash else "not", uid
+            self.save_images_dir, "splash" if "splash" in is_splash else "not", uid
         )
-
-        try:
-            cv2.imwrite(path, bbox_image)
-        except Exception as e:
-            print(f"Failed to save this splash image:\n{e}")
-            return False
-
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        # convert it from BGR to RGB
+        img = numpy_img_bgr_to_rgb(img)
+        img = Image.fromarray(img)
+        bbox = xywy2xyxy(*bbox)
+        img = img.crop(bbox)
+        img.save(path)
         return True
+
+
+def numpy_img_bgr_to_rgb(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
+def xywy2xyxy(x, y, w, h):
+    return x - w // 2, y - h // 2, x + w // 2, y + h // 2
 
 
 def run_bot_with_gui():
     root = tk.Tk()
-    gui = SimpleGUI(root)
-    bot = WoWFishBot(gui)
+    gui = GUI(root)
+    bot = WoWFishBot(gui, save_images=True)
     gui.set_bot(bot)  # Pass the bot to the GUI for control
     root.mainloop()
 
