@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 
 
-
 def draw_text(
     image,
     text,
@@ -33,15 +32,15 @@ def draw_text(
 
 
 class SplashClassifier:
-    def __init__(self,model_path):
+    def __init__(self, model_path):
         self.model_path = model_path
         self.session = onnxruntime.InferenceSession(model_path)
 
     def preprocess(self, image):
         try:
 
-            #just make sure the image is 256,256
-            image = cv2.resize(image,(256,256))
+            # just make sure the image is 256,256
+            image = cv2.resize(image, (256, 256))
             image = image.astype(np.float32) / 255.0
             image = np.transpose(image, (2, 0, 1))
             image = np.expand_dims(image, axis=0)
@@ -55,13 +54,13 @@ class SplashClassifier:
             conf = str(conf)[:5]
             return conf
 
-        label1,label2 = output[0][0]
-        if label1>label2:
-            return f'not {format_confidence(label1)}%'
+        label1, label2 = output[0][0]
+        if label1 > label2:
+            return f"not {format_confidence(label1)}%"
         else:
-            return f'splash {format_confidence(label2)}%'
+            return f"splash {format_confidence(label2)}%"
 
-    def run(self, image,draw_result=False):
+    def run(self, image, draw_result=False):
         pred = self.session.run(None, {self.session.get_inputs()[0].name: image})
         if draw_result:
             draw_text(
@@ -76,8 +75,5 @@ class SplashClassifier:
         return pred
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass
-
-
-
