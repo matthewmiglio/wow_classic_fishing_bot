@@ -4,7 +4,8 @@ import threading
 from PIL import Image, ImageTk
 import numpy as np
 
-class SimpleGUI:
+
+class GUI:
     def __init__(self, root):
         self.root = root
         self.root.title("WoW Fishing Bot Display")
@@ -33,21 +34,29 @@ class SimpleGUI:
         self.stats = {
             "bobber_detected": tk.StringVar(value="No"),
             "splash_detected": tk.StringVar(value="No"),
-            'casts': tk.StringVar(value=0),
-            'reels': tk.StringVar(value=0),
+            "casts": tk.StringVar(value=0),
+            "reels": tk.StringVar(value=0),
         }
 
         ttk.Label(self.stats_frame, text="Bobber Detected").grid(row=0, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["bobber_detected"]).grid(row=0, column=1)
+        ttk.Label(self.stats_frame, textvariable=self.stats["bobber_detected"]).grid(
+            row=0, column=1
+        )
 
         ttk.Label(self.stats_frame, text="Splash Detected").grid(row=1, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["splash_detected"]).grid(row=1, column=1)
+        ttk.Label(self.stats_frame, textvariable=self.stats["splash_detected"]).grid(
+            row=1, column=1
+        )
 
         ttk.Label(self.stats_frame, text="Casts").grid(row=2, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["casts"]).grid(row=2, column=1)
+        ttk.Label(self.stats_frame, textvariable=self.stats["casts"]).grid(
+            row=2, column=1
+        )
 
         ttk.Label(self.stats_frame, text="Reels").grid(row=3, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["reels"]).grid(row=3, column=1)
+        ttk.Label(self.stats_frame, textvariable=self.stats["reels"]).grid(
+            row=3, column=1
+        )
 
         # Create Start and Stop buttons
         self.start_button = ttk.Button(root, text="Start", command=self.start_bot)
@@ -64,7 +73,9 @@ class SimpleGUI:
 
     def start_bot(self):
         """Start the bot."""
-        if self.bot and not self.bot.running_event.is_set():  # Check if bot is not already running
+        if (
+            self.bot and not self.bot.running_event.is_set()
+        ):  # Check if bot is not already running
             self.bot.running_event.set()  # Signal to start running
             bot_thread = threading.Thread(target=self.bot.run, daemon=True)
             bot_thread.start()  # Start the bot in a separate thread
@@ -74,27 +85,32 @@ class SimpleGUI:
         if self.bot:
             self.bot.stop()  # Signal to stop running
 
-    def update_image(self, image_array, image_type='raw'):
+    def update_image(self, image_array, image_type="raw"):
         """Update the displayed image."""
         image = Image.fromarray(image_array)
         image = ImageTk.PhotoImage(image)
 
-        if image_type == 'raw':
+        if image_type == "raw":
             self.raw_image_display.config(image=image)
-            self.raw_image_display.image = image  # Keep a reference to avoid garbage collection
-        elif image_type == 'bobber':
+            self.raw_image_display.image = (
+                image  # Keep a reference to avoid garbage collection
+            )
+        elif image_type == "bobber":
             self.bobber_image_display.config(image=image)
-            self.bobber_image_display.image = image  # Keep a reference to avoid garbage collection
+            self.bobber_image_display.image = (
+                image  # Keep a reference to avoid garbage collection
+            )
 
     def update_stat(self, stat_name, value):
         """Update the stats display."""
         if stat_name in self.stats:
             self.stats[stat_name].set(value)
 
+
 # Example usage
 if __name__ == "__main__":
     root = tk.Tk()
-    gui = SimpleGUI(root)
+    gui = GUI(root)
 
     # Example to update values and images
     gui.update_stat("bobber_detected", "Yes")
@@ -104,7 +120,7 @@ if __name__ == "__main__":
     raw_image = np.random.randint(0, 255, (200, 200, 3), dtype=np.uint8)
     bobber_image = np.random.randint(0, 255, (200, 200, 3), dtype=np.uint8)
 
-    gui.update_image(raw_image, 'raw')
-    gui.update_image(bobber_image, 'bobber')
+    gui.update_image(raw_image, "raw")
+    gui.update_image(bobber_image, "bobber")
 
     root.mainloop()
