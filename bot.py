@@ -3,6 +3,7 @@ import threading
 import pyautogui
 import numpy as np
 import time
+import pygetwindow
 import os
 import tkinter as tk
 import cv2
@@ -14,8 +15,12 @@ from gui import GUI
 class WoWFishBot:
     def __init__(self, gui, save_images=False):
         self.gui = gui
-        self.bobber_detector = BobberDetector(r"inference\bobber_finder.onnx")
-        self.splash_classifier = SplashClassifier(r"inference\splash_classifier.onnx")
+        self.bobber_detector = BobberDetector(
+            r"inference\bobber_models\bobber_finder3.0.onnx"
+        )
+        self.splash_classifier = SplashClassifier(
+            r"inference\splash_models\splash_classifier3.0.onnx"
+        )  # test this. otherwise use 1.0
         self.save_splash_images_toggle = save_images
         self.save_images_dir = "save_images"
 
@@ -71,9 +76,15 @@ class WoWFishBot:
         return bbox_image
 
     def focus_wow(self):
-        wow_deadspace = (1800, 100)
-        pyautogui.click(*wow_deadspace)
-        time.sleep(0.2)
+        close_sponsored_session_teamviewer()
+        name = "World of Warcraft"
+        try:
+            window = pygetwindow.getWindowsWithTitle(name)[0]
+            window.activate()
+        except:
+            return False
+
+        return True
 
     def start_fishing(self):
         self.focus_wow()
@@ -184,13 +195,32 @@ class WoWFishBot:
             # if none detected at all
             else:
                 self.gui.update_stat("bobber_detected", "No")
-                self.gui.update_image(base_image, "bobber")
+                self.gui.update_image(self.make_no_bobber_image(), "bobber")
                 self.gui.update_stat("splash_detected", "No")
                 self.add_splash_prediction("none")
                 if self.last_predictions_equal("none", 11):
                     print("Starting fishing...")
+                    time.sleep(2)
                     self.start_fishing()
                     time.sleep(2)
+
+    def make_no_bobber_image(self):
+        img = np.ones((256, 256, 3), np.uint8) * 255
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        bottomLeftCornerOfText = (10, 256 // 2)
+        fontScale = 1
+        fontColor = (135, 0, 0)
+        lineType = 2
+        cv2.putText(
+            img,
+            "No bobber",
+            bottomLeftCornerOfText,
+            font,
+            fontScale,
+            fontColor,
+            lineType,
+        )
+        return img
 
     def stop(self):
         self.running_event.clear()  # Stop the bot
@@ -202,7 +232,7 @@ class WoWFishBot:
 
         img = Image.fromarray(img)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        img.save(path)
+        save_image_to_save_images(path, img)
 
     def save_splash_images(self, bbox, img, is_splash) -> bool:
         uid = str(time.time()).replace(".", "") + ".png"
@@ -215,8 +245,36 @@ class WoWFishBot:
         img = Image.fromarray(img)
         bbox = xywy2xyxy(*bbox)
         img = img.crop(bbox)
-        img.save(path)
+        save_image_to_save_images(path, img)
         return True
+
+
+def close_sponsored_session_teamviewer():
+    name = "Sponsored session"
+    try:
+        window = pygetwindow.getWindowsWithTitle(name)[0]
+        window.close()
+    except:
+        return False
+
+    return True
+
+
+def save_image_to_save_images(path: str, image: Image.Image):
+    # make the dir if it doesnt exist
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    # if there more than 1000 images in the folder, delete a random one
+    if len(os.listdir(os.path.dirname(path))) > 1000:
+        os.remove(
+            os.path.join(
+                os.path.dirname(path),
+                np.random.choice(os.listdir(os.path.dirname(path))),
+            )
+        )
+
+    # save this image
+    image.save(path)
 
 
 def numpy_img_bgr_to_rgb(img):
