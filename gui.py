@@ -36,6 +36,8 @@ class GUI:
             "splash_detected": tk.StringVar(value="No"),
             "casts": tk.StringVar(value=0),
             "reels": tk.StringVar(value=0),
+            "buffs": tk.StringVar(value=0),
+            "runtime": tk.StringVar(value=0),
         }
 
         ttk.Label(self.stats_frame, text="Bobber Detected").grid(row=0, column=0)
@@ -57,6 +59,17 @@ class GUI:
         ttk.Label(self.stats_frame, textvariable=self.stats["reels"]).grid(
             row=3, column=1
         )
+
+        ttk.Label(self.stats_frame, text="buffs").grid(row=4, column=0)
+        ttk.Label(self.stats_frame, textvariable=self.stats["buffs"]).grid(
+            row=4, column=1
+        )
+
+        ttk.Label(self.stats_frame, text="Runtime").grid(row=5, column=0)
+        ttk.Label(self.stats_frame, textvariable=self.stats["runtime"]).grid(
+            row=5, column=1
+        )
+
 
         # Create Start and Stop buttons
         self.start_button = ttk.Button(root, text="Start", command=self.start_bot)
