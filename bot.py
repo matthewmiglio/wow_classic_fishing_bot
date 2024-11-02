@@ -17,24 +17,35 @@ FISHING_POLE_COORD = (520,1330)
 BUFF_INCREMENT = 11 # minutes
 
 class WoWFishBot:
-    def __init__(self, gui, save_images=False):
+    def __init__(self, gui, save_images=False,apply_buff=False):
+        #gui
         self.gui = gui
+        self.running_event = threading.Event()  # Control the bot running state
+
+        #ai models
         self.bobber_detector = BobberDetector(
             r"inference\bobber_models\bobber_finder3.0.onnx"
         )
         self.splash_classifier = SplashClassifier(
             r"inference\splash_models\splash_classifier4.0.onnx"
         )  # test this. otherwise use 1.0
+
+        #saving images
         self.save_splash_images_toggle = save_images
         self.save_images_dir = "save_images"
 
+        #user toggles
+        self.apply_buff = apply_buff
+
+        #stats
         self.casts = 0
         self.reels = 0
         self.buffs = 0
+        self.time_running = 0
+
+        #prediction storage
         self.prediction_history = []  # used to store the last 8 predictions
         self.splash_prediction_history_limit = 12
-        self.running_event = threading.Event()  # Control the bot running state
-        self.time_running = 0
 
     def should_buff(self):
         minutes_ran = self.time_running / 60
@@ -110,7 +121,7 @@ class WoWFishBot:
         return True
 
     def start_fishing(self):
-        if self.should_buff():
+        if self.apply_buff and self.should_buff():
             self.apply_fishing_buff()
 
         pyautogui.click(*START_FISHING_COORD)
@@ -342,7 +353,7 @@ def run_bot_with_gui():
     root = tk.Tk()
     gui = GUI(root)
     bot = WoWFishBot(gui, save_images=False)
-    gui.set_bot(bot)  # Pass the bot to the GUI for control
+    gui.set_bot(bot)
     root.mainloop()
 
 
