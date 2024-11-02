@@ -11,6 +11,10 @@ from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
 from gui import GUI
 
+START_FISHING_COORD = (930, 1400)
+FISHING_BUFF_COORD = (470, 1330)
+FISHING_POLE_COORD = (520,1330)
+BUFF_INCREMENT = 11 # minutes
 
 class WoWFishBot:
     def __init__(self, gui, save_images=False):
@@ -19,17 +23,36 @@ class WoWFishBot:
             r"inference\bobber_models\bobber_finder3.0.onnx"
         )
         self.splash_classifier = SplashClassifier(
-            r"inference\splash_models\splash_classifier3.0.onnx"
+            r"inference\splash_models\splash_classifier4.0.onnx"
         )  # test this. otherwise use 1.0
         self.save_splash_images_toggle = save_images
         self.save_images_dir = "save_images"
 
         self.casts = 0
         self.reels = 0
+        self.buffs = 0
         self.prediction_history = []  # used to store the last 8 predictions
         self.splash_prediction_history_limit = 12
-
         self.running_event = threading.Event()  # Control the bot running state
+        self.time_running = 0
+
+    def should_buff(self):
+        minutes_ran = self.time_running / 60
+
+        target_count = (minutes_ran // BUFF_INCREMENT) +1
+
+        if target_count > self.buffs:
+            self.buffs += 1
+            return True
+
+        return False
+
+    def apply_fishing_buff(self):
+        pyautogui.click(*FISHING_BUFF_COORD,clicks=2,interval=0.22)
+        time.sleep(0.1)
+        pyautogui.click(*FISHING_POLE_COORD,clicks=2,interval=0.22)
+        time.sleep(5.5)
+        self.update_gui("buffs", self.buffs)
 
     def add_splash_prediction(self, prediction):
         # add the prediction to the history while removing the oldest
@@ -87,8 +110,10 @@ class WoWFishBot:
         return True
 
     def start_fishing(self):
-        self.focus_wow()
-        pyautogui.press("z")
+        if self.should_buff():
+            self.apply_fishing_buff()
+
+        pyautogui.click(*START_FISHING_COORD)
         self.casts += 1
         self.update_gui("casts", self.casts)
 
@@ -119,6 +144,9 @@ class WoWFishBot:
         return (real_x, real_y)
 
     def update_gui(self, stat, value):
+        if self.gui is None:
+            return
+
         if stat == "raw_image":
             try:
                 value = numpy_img_bgr_to_rgb(value)
@@ -142,6 +170,10 @@ class WoWFishBot:
             self.gui.update_stat("casts", value)
         if stat == "reels":
             self.gui.update_stat("reels", value)
+        if stat == "buffs":
+            self.gui.update_stat("buffs", value)
+        if stat == 'runtime':
+            self.gui.update_stat("runtime", value)
 
     def run(self):
         MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
@@ -150,6 +182,7 @@ class WoWFishBot:
         self.running_event.set()  # Start the event
 
         while self.running_event.is_set():
+            start_time = time.time()
             base_image = self.screenshot_bobber_roi()
             self.save_roi_image(base_image)
             self.update_gui("raw_image", base_image)
@@ -167,6 +200,7 @@ class WoWFishBot:
                 # get the bobber image ready for the splash classifier
                 bobber_image = self.splash_classifier.preprocess(bobber_image)
                 if bobber_image is False:
+                    self.add_time_taken(time.time() - start_time)
                     continue
 
                 # classify that bobber image as either a 'splash' or 'not' a splash
@@ -200,9 +234,28 @@ class WoWFishBot:
                 self.add_splash_prediction("none")
                 if self.last_predictions_equal("none", 11):
                     print("Starting fishing...")
-                    time.sleep(2)
                     self.start_fishing()
                     time.sleep(2)
+
+            self.add_time_taken(time.time() - start_time)
+
+    def add_time_taken(self,time_taken):
+        def format_timestamp(timestamp):
+            def format_digit(num):
+                num=str(num)
+                while len(num) < 2:
+                    num = '0' + num
+                return num
+            remainder = timestamp
+            hours = int(timestamp // 3600)
+            remainder = remainder % 3600
+            minutes = int(remainder // 60)
+            remainder = remainder % 60
+            seconds = int(remainder)
+            return f"{format_digit(hours)}:{format_digit(minutes)}:{format_digit(seconds)}"
+
+        self.time_running += time_taken
+        self.update_gui('runtime', format_timestamp(self.time_running))
 
     def make_no_bobber_image(self):
         img = np.ones((256, 256, 3), np.uint8) * 255
@@ -288,10 +341,11 @@ def xywy2xyxy(x, y, w, h):
 def run_bot_with_gui():
     root = tk.Tk()
     gui = GUI(root)
-    bot = WoWFishBot(gui, save_images=True)
+    bot = WoWFishBot(gui, save_images=False)
     gui.set_bot(bot)  # Pass the bot to the GUI for control
     root.mainloop()
 
 
 if __name__ == "__main__":
     run_bot_with_gui()
+
