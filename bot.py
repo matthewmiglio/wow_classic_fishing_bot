@@ -422,7 +422,12 @@ def save_image_to_save_images(path: str, image: Image.Image):
 
 
 def numpy_img_bgr_to_rgb(img):
-    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    try:
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    except Exception as e:
+        print(f'\nError occured in numpy_img_bgr_to_rgb(): {e}'*50)
+
+    return img
 
 
 def xywy2xyxy(x, y, w, h):
