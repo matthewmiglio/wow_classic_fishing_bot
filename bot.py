@@ -13,16 +13,19 @@ from gui import GUI
 
 START_FISHING_COORD = (930, 1400)
 FISHING_BUFF_COORD = (470, 1330)
-FISHING_POLE_COORD = (520,1330)
-BUFF_INCREMENT = 11 # minutes
+FISHING_POLE_COORD = (520, 1330)
+BUFF_INCREMENT = 11  # minutes
+
 
 class WoWFishBot:
-    def __init__(self, gui, save_images=False,apply_buff=False):
-        #gui
+    MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
+
+    def __init__(self, gui, save_images=False, apply_buff=False):
+        # gui
         self.gui = gui
         self.running_event = threading.Event()  # Control the bot running state
 
-        #ai models
+        # ai models
         self.bobber_detector = BobberDetector(
             r"inference\bobber_models\bobber_finder3.0.onnx"
         )
@@ -30,27 +33,32 @@ class WoWFishBot:
             r"inference\splash_models\splash_classifier4.0.onnx"
         )  # test this. otherwise use 1.0
 
-        #saving images
+        # saving images
         self.save_splash_images_toggle = save_images
         self.save_images_dir = "save_images"
 
-        #user toggles
+        # user toggles
         self.apply_buff = apply_buff
 
-        #stats
+        # stats
         self.casts = 0
         self.reels = 0
         self.buffs = 0
         self.time_running = 0
 
-        #prediction storage
+        # prediction storage
         self.prediction_history = []  # used to store the last 8 predictions
-        self.splash_prediction_history_limit = 12
+        self.splash_prediction_history_limit = 100
+
+        # vars related to dynamic roi image
+        self.dynamic_image_topleft = (0, 0)
+        self.dynamic_image_crop_region = (0, 0, 0, 0)  # x1,y1,x2,y2
+        self.stretched_size = (256, 256)
 
     def should_buff(self):
         minutes_ran = self.time_running / 60
 
-        target_count = (minutes_ran // BUFF_INCREMENT) +1
+        target_count = (minutes_ran // BUFF_INCREMENT) + 1
 
         if target_count > self.buffs:
             self.buffs += 1
@@ -59,9 +67,9 @@ class WoWFishBot:
         return False
 
     def apply_fishing_buff(self):
-        pyautogui.click(*FISHING_BUFF_COORD,clicks=2,interval=0.22)
+        pyautogui.click(*FISHING_BUFF_COORD, clicks=2, interval=0.22)
         time.sleep(0.1)
-        pyautogui.click(*FISHING_POLE_COORD,clicks=2,interval=0.22)
+        pyautogui.click(*FISHING_POLE_COORD, clicks=2, interval=0.22)
         time.sleep(5.5)
         self.update_gui("buffs", self.buffs)
 
@@ -77,27 +85,93 @@ class WoWFishBot:
         if len(self.prediction_history) > self.splash_prediction_history_limit:
             self.prediction_history.remove(self.prediction_history[0])
 
-    def last_predictions_equal(self, prediction_string, equal_count):
-        if prediction_string not in self.prediction_history[-1]:
+    def last_predictions_equal(
+        self, prediction, mind_prediction_count, prediction_history_length=12
+    ):
+        # most recent prediction should be the target prediction
+        if prediction not in self.prediction_history[-1]:
             return False
 
-        this_count = 0
-        for i in self.prediction_history:
-            if prediction_string in i:
-                this_count += 1
+        # count up the number of times the target prediction has been made in the recent history_length count
+        cut_prediction_history = self.prediction_history[-prediction_history_length:]
+        count = 0
+        for prediction in cut_prediction_history:
+            if prediction in prediction:
+                count += 1
 
-        if this_count > equal_count:
+        # if the count is greater than the equal_count, return True
+        if count > mind_prediction_count:
             self.prediction_history = []
             return True
 
         return False
 
-    def screenshot_bobber_roi(self):
-        image = pyautogui.screenshot()
-        image = image.crop((700, 100, 1300, 900)).resize((256, 256))
-        image = np.array(image)
-        image = image[:, :, ::-1].copy()  # Convert BGR to RGB
-        return image
+    def get_roi_image(self):
+        # get the wow image
+        window_name = "World of Warcraft"
+        window = pygetwindow.getWindowsWithTitle(window_name)[0]
+        self.dynamic_image_topleft = (window.left, window.top)
+        region = (window.left, window.top, window.width, window.height)
+        wow_image = pyautogui.screenshot(region=region)
+
+        # calculate the crop
+        crop_ratios = (
+            0.3645833333333333,
+            0.06944444444444445,
+            0.6770833333333334,
+            0.625,
+        )
+
+        this_crop = (
+            crop_ratios[0] * wow_image.width,
+            crop_ratios[1] * wow_image.height,
+            crop_ratios[2] * wow_image.width,
+            crop_ratios[3] * wow_image.height,
+        )
+        self.dynamic_image_crop_region = this_crop
+
+        # crop the image
+        wow_image = wow_image.crop(this_crop).resize((256, 256))
+
+        # convert to numpy array
+        wow_image = np.array(wow_image)
+        return wow_image
+
+    def convert_bbox_to_usable(self, bbox):
+        # Extract the bounding box components
+        center_x, center_y, width, height = bbox
+
+        # Step 1: Unstretch the bounding box
+        # Convert the center back to the crop coordinates
+        scale_x = self.stretched_size[0] / (
+            self.dynamic_image_crop_region[2] - self.dynamic_image_crop_region[0]
+        )
+        scale_y = self.stretched_size[1] / (
+            self.dynamic_image_crop_region[3] - self.dynamic_image_crop_region[1]
+        )
+
+        # Convert to crop coordinates
+        crop_center_x = center_x / scale_x
+        crop_center_y = center_y / scale_y
+        crop_width = width / scale_x
+        crop_height = height / scale_y
+
+        # Step 2: Uncrop to original window coordinates
+        # The crop coordinates are relative to the crop region
+        original_x = crop_center_x - crop_width / 2
+        original_y = crop_center_y - crop_height / 2
+
+        # Now adjust for the original window position
+        original_x += self.dynamic_image_crop_region[0] + self.dynamic_image_topleft[0]
+        original_y += self.dynamic_image_crop_region[1] + self.dynamic_image_topleft[1]
+
+        # Return the usable bounding box in the format [x1, y1, x2, y2]
+        x1 = original_x
+        y1 = original_y
+        x2 = original_x + crop_width
+        y2 = original_y + crop_height
+
+        return (x1, y1, x2, y2)
 
     def make_bobber_image(self, bbox, img):
         xywh = bbox
@@ -124,14 +198,16 @@ class WoWFishBot:
         if self.apply_buff and self.should_buff():
             self.apply_fishing_buff()
 
-        pyautogui.click(*START_FISHING_COORD)
+        self.focus_wow()
+        pyautogui.press("z")
         self.casts += 1
         self.update_gui("casts", self.casts)
 
     def click_bbox(self, bbox):
-        coord = self.calculate_coordinates(bbox)
-        print("Reeling in the bobber with this coord: ", coord)
-        self.send_delayed_click(*coord, wait=1)
+        x1, y1, x2, y2 = bbox
+        center_x = int((x1 + x2) / 2)
+        center_y = int((y1 + y2) / 2)
+        self.send_delayed_click(center_x, center_y, wait=1)
 
     def send_delayed_click(self, x, y, wait):
         def _to_wrap(x, y, wait):
@@ -141,20 +217,11 @@ class WoWFishBot:
         t = threading.Thread(target=_to_wrap, args=(x, y, wait))
         t.start()
 
-    def calculate_coordinates(self, bbox):
-        x, y, w, h = bbox
-        this_image_dim = 256
-        x_ratio = x / this_image_dim
-        y_ratio = y / this_image_dim
-        prev_image_dim_x = 600
-        prev_image_dim_y = 800
-        start_x = 700
-        start_y = 100
-        real_y = start_y + (y_ratio * prev_image_dim_y)
-        real_x = start_x + (x_ratio * prev_image_dim_x)
-        return (real_x, real_y)
-
     def update_gui(self, stat, value):
+        if "image" in stat:
+            # convert value to rgb
+            value = numpy_img_bgr_to_rgb(value)
+
         if self.gui is None:
             return
 
@@ -183,19 +250,19 @@ class WoWFishBot:
             self.gui.update_stat("reels", value)
         if stat == "buffs":
             self.gui.update_stat("buffs", value)
-        if stat == 'runtime':
+        if stat == "runtime":
             self.gui.update_stat("runtime", value)
 
     def run(self):
-        MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
-        print("Initializing Bobber Detector and Splash Classifier modules!")
-
         self.running_event.set()  # Start the event
 
         while self.running_event.is_set():
             start_time = time.time()
-            base_image = self.screenshot_bobber_roi()
-            self.save_roi_image(base_image)
+            base_image = self.get_roi_image()
+
+            if self.save_splash_images_toggle:
+                self.save_roi_image(base_image)
+
             self.update_gui("raw_image", base_image)
 
             bbox, score = self.bobber_detector.detect_object_in_image(
@@ -203,7 +270,7 @@ class WoWFishBot:
             )
 
             # if a bobber detected
-            if score > MIN_CONFIDENCE_FOR_BOBBER_DETECTION:
+            if score > self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION:
                 # get the image of the bobber based on the bbox we infered
                 bobber_image = self.make_bobber_image(bbox, base_image)
                 self.update_gui("bobber_image", bobber_image)
@@ -224,13 +291,18 @@ class WoWFishBot:
 
                 # if the bobber is a splash, we click it to reel in the fish
                 self.add_splash_prediction(is_splash)
-                if self.last_predictions_equal("splash", 6):
+                if self.last_predictions_equal(
+                    prediction="splash",
+                    mind_prediction_count=6,
+                    prediction_history_length=12,
+                ):
                     print(
                         "Splash detected! Reeling in fish...\nSelf.splash_prediction_history: ",
                         self.prediction_history,
                     )
                     self.reels += 1
                     self.update_gui("reels", self.reels)
+                    bbox = self.convert_bbox_to_usable(bbox)
                     self.click_bbox(bbox)
 
                 # if we want to save the splash images
@@ -241,32 +313,40 @@ class WoWFishBot:
             else:
                 self.gui.update_stat("bobber_detected", "No")
                 self.gui.update_image(self.make_no_bobber_image(), "bobber")
+                self.gui.update_image(self.get_roi_image(), "raw_image")
                 self.gui.update_stat("splash_detected", "No")
                 self.add_splash_prediction("none")
-                if self.last_predictions_equal("none", 11):
+                if self.last_predictions_equal(
+                    prediction="none",
+                    mind_prediction_count=20,
+                    prediction_history_length=50,
+                ):
+                    print('20 of the last 50 predictions were "none".')
                     print("Starting fishing...")
                     self.start_fishing()
-                    time.sleep(2)
 
             self.add_time_taken(time.time() - start_time)
 
-    def add_time_taken(self,time_taken):
+    def add_time_taken(self, time_taken):
         def format_timestamp(timestamp):
             def format_digit(num):
-                num=str(num)
+                num = str(num)
                 while len(num) < 2:
-                    num = '0' + num
+                    num = "0" + num
                 return num
+
             remainder = timestamp
             hours = int(timestamp // 3600)
             remainder = remainder % 3600
             minutes = int(remainder // 60)
             remainder = remainder % 60
             seconds = int(remainder)
-            return f"{format_digit(hours)}:{format_digit(minutes)}:{format_digit(seconds)}"
+            return (
+                f"{format_digit(hours)}:{format_digit(minutes)}:{format_digit(seconds)}"
+            )
 
         self.time_running += time_taken
-        self.update_gui('runtime', format_timestamp(self.time_running))
+        self.update_gui("runtime", format_timestamp(self.time_running))
 
     def make_no_bobber_image(self):
         img = np.ones((256, 256, 3), np.uint8) * 255
@@ -359,4 +439,3 @@ def run_bot_with_gui():
 
 if __name__ == "__main__":
     run_bot_with_gui()
-
