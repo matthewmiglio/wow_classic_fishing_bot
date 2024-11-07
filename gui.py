@@ -5,10 +5,14 @@ from PIL import Image, ImageTk
 import numpy as np
 
 
+GUI_WINDOW_NAME = "WoW Fishing Bot Display"
+from constants import BLACKLIST_STRINGS
+
+
 class GUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("WoW Fishing Bot Display")
+        self.root.title(GUI_WINDOW_NAME)
 
         # Create frames for images and stats
         self.image_frame = tk.Frame(root)
@@ -36,7 +40,6 @@ class GUI:
             "splash_detected": tk.StringVar(value="No"),
             "casts": tk.StringVar(value=0),
             "reels": tk.StringVar(value=0),
-            "buffs": tk.StringVar(value=0),
             "runtime": tk.StringVar(value=0),
         }
 
@@ -60,16 +63,13 @@ class GUI:
             row=3, column=1
         )
 
-        ttk.Label(self.stats_frame, text="buffs").grid(row=4, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["buffs"]).grid(
+        ttk.Label(self.stats_frame, text="Runtime").grid(row=4, column=0)
+        ttk.Label(self.stats_frame, textvariable=self.stats["runtime"]).grid(
             row=4, column=1
         )
 
-        ttk.Label(self.stats_frame, text="Runtime").grid(row=5, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["runtime"]).grid(
-            row=5, column=1
-        )
-
+        # save settings location
+        self.save_settings_path = r"settings.txt"
 
         # Create Start and Stop buttons
         self.start_button = ttk.Button(root, text="Start", command=self.start_bot)
@@ -77,6 +77,12 @@ class GUI:
 
         self.stop_button = ttk.Button(root, text="Stop", command=self.stop_bot)
         self.stop_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Create the "Open Blacklist Settings" button
+        self.blacklist_button = ttk.Button(
+            root, text="Blacklist Settings", command=self.open_blacklist_gui
+        )
+        self.blacklist_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bot = None  # Reference to the bot
 
@@ -119,21 +125,48 @@ class GUI:
         if stat_name in self.stats:
             self.stats[stat_name].set(value)
 
+    def open_blacklist_gui(self):
+        """Open the popup window for blacklist settings."""
+        self.blacklist_window = tk.Toplevel(self.root)
+        self.blacklist_window.title("Blacklist Settings")
 
-# Example usage
-if __name__ == "__main__":
-    root = tk.Tk()
-    gui = GUI(root)
+        self.checkboxes = {}
 
-    # Example to update values and images
-    gui.update_stat("bobber_detected", "Yes")
-    gui.update_stat("splash_detected", "No")
+        # Create checkboxes dynamically
+        for index, text in enumerate(BLACKLIST_STRINGS):
+            var = tk.BooleanVar()
+            checkbox = tk.Checkbutton(self.blacklist_window, text=text, variable=var)
+            checkbox.grid(row=index, column=0, sticky="w")
+            self.checkboxes[text] = var
 
-    # Example image updates (use random numpy arrays for demonstration)
-    raw_image = np.random.randint(0, 255, (200, 200, 3), dtype=np.uint8)
-    bobber_image = np.random.randint(0, 255, (200, 200, 3), dtype=np.uint8)
+        # Save and Close buttons
+        self.save_button = ttk.Button(
+            self.blacklist_window,
+            text="Save Settings",
+            command=self.save_blacklist_settings,
+        )
+        self.save_button.grid(row=len(BLACKLIST_STRINGS), column=0, padx=5, pady=5)
 
-    gui.update_image(raw_image, "raw")
-    gui.update_image(bobber_image, "bobber")
+        self.close_button = ttk.Button(
+            self.blacklist_window, text="Close", command=self.close_blacklist_gui
+        )
+        self.close_button.grid(row=len(BLACKLIST_STRINGS), column=1, padx=5, pady=5)
 
-    root.mainloop()
+    def save_blacklist_settings(self):
+        """Placeholder method for saving blacklist settings."""
+        selected_items = [fish for fish, var in self.checkboxes.items() if var.get()]
+        with open(self.save_settings_path, "w") as f:
+            for item in selected_items:
+                f.write("%s," % item)
+
+        self.blacklist_window.destroy()
+
+    def get_blacklist_settings(self):
+        """Placeholder method for getting blacklist settings."""
+        with open(self.save_settings_path, "r") as f:
+            selected_items = f.read().split(",")
+        return selected_items
+
+    def close_blacklist_gui(self):
+        """Close the blacklist settings window."""
+        self.blacklist_window.destroy()
