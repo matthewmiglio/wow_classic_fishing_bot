@@ -3,10 +3,11 @@ from tkinter import ttk
 import threading
 from PIL import Image, ImageTk
 import numpy as np
+import os
 
 
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
-from constants import BLACKLIST_STRINGS
+from loot_constants import BLACKLIST_STRINGS
 
 
 class GUI:
@@ -130,33 +131,76 @@ class GUI:
         self.blacklist_window = tk.Toplevel(self.root)
         self.blacklist_window.title("Blacklist Settings")
 
-        self.checkboxes = {}
+        self.whitelist_frame = tk.Frame(self.blacklist_window)
+        self.whitelist_frame.grid(row=0, column=0, padx=10, pady=10)
 
-        # Create checkboxes dynamically
-        for index, text in enumerate(BLACKLIST_STRINGS):
-            var = tk.BooleanVar()
-            checkbox = tk.Checkbutton(self.blacklist_window, text=text, variable=var)
-            checkbox.grid(row=index, column=0, sticky="w")
-            self.checkboxes[text] = var
+        self.blacklist_frame = tk.Frame(self.blacklist_window)
+        self.blacklist_frame.grid(row=0, column=1, padx=10, pady=10)
+
+        # Create the listboxes
+        self.whitelist_listbox = tk.Listbox(self.whitelist_frame, height=15, width=30, selectmode=tk.SINGLE)
+        self.whitelist_listbox.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.blacklist_listbox = tk.Listbox(self.blacklist_frame, height=15, width=30, selectmode=tk.SINGLE)
+        self.blacklist_listbox.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Buttons to move items
+        self.move_to_blacklist_button = ttk.Button(self.blacklist_window, text="Add to Blacklist", command=self.move_to_blacklist)
+        self.move_to_blacklist_button.grid(row=1, column=0, padx=5, pady=5)
+
+        self.move_to_whitelist_button = ttk.Button(self.blacklist_window, text="Add to Whitelist", command=self.move_to_whitelist)
+        self.move_to_whitelist_button.grid(row=1, column=1, padx=5, pady=5)
+
+        # Load the blacklist settings and populate the lists
+        self.load_blacklist_settings()
 
         # Save and Close buttons
-        self.save_button = ttk.Button(
-            self.blacklist_window,
-            text="Save Settings",
-            command=self.save_blacklist_settings,
-        )
-        self.save_button.grid(row=len(BLACKLIST_STRINGS), column=0, padx=5, pady=5)
+        self.save_button = ttk.Button(self.blacklist_window, text="Save Settings", command=self.save_blacklist_settings)
+        self.save_button.grid(row=2, column=0, padx=5, pady=5)
 
-        self.close_button = ttk.Button(
-            self.blacklist_window, text="Close", command=self.close_blacklist_gui
-        )
-        self.close_button.grid(row=len(BLACKLIST_STRINGS), column=1, padx=5, pady=5)
+        self.close_button = ttk.Button(self.blacklist_window, text="Close", command=self.close_blacklist_gui)
+        self.close_button.grid(row=2, column=1, padx=5, pady=5)
+
+    def move_to_blacklist(self):
+        """Move selected item from whitelist to blacklist."""
+        selected_item = self.whitelist_listbox.get(tk.ACTIVE)
+        if selected_item:
+            self.whitelist_listbox.delete(tk.ACTIVE)
+            self.blacklist_listbox.insert(tk.END, selected_item)
+
+    def move_to_whitelist(self):
+        """Move selected item from blacklist to whitelist."""
+        selected_item = self.blacklist_listbox.get(tk.ACTIVE)
+        if selected_item:
+            self.blacklist_listbox.delete(tk.ACTIVE)
+            self.whitelist_listbox.insert(tk.END, selected_item)
+
+    def load_blacklist_settings(self):
+        """Initialize the positions of each string according to settings.txt."""
+        if os.path.exists(self.save_settings_path):
+            with open(self.save_settings_path, "r") as f:
+                saved_settings = f.read().split(",")
+                saved_settings = [item.strip() for item in saved_settings if item.strip()]
+
+            # Populate the whitelist and blacklist based on saved settings
+            for item in BLACKLIST_STRINGS:
+                if item in saved_settings:
+                    self.blacklist_listbox.insert(tk.END, item)
+                else:
+                    self.whitelist_listbox.insert(tk.END, item)
+        else:
+            # If settings.txt does not exist, assume all items are whitelisted
+            for item in BLACKLIST_STRINGS:
+                self.whitelist_listbox.insert(tk.END, item)
 
     def save_blacklist_settings(self):
-        """Placeholder method for saving blacklist settings."""
-        selected_items = [fish for fish, var in self.checkboxes.items() if var.get()]
+        """Save the current blacklist settings."""
+        whitelist_items = list(self.whitelist_listbox.get(0, tk.END))
+        blacklist_items = list(self.blacklist_listbox.get(0, tk.END))
+
+        # Save the blacklist items to settings.txt
         with open(self.save_settings_path, "w") as f:
-            for item in selected_items:
+            for item in blacklist_items:
                 f.write("%s," % item)
 
         self.blacklist_window.destroy()
