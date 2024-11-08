@@ -1,4 +1,32 @@
 LOOT_COLOR_DATA = {
+    "Raw Glossy Mightfish": {
+        (255, 0, 0): 0,
+        (0, 255, 0): 4,
+        (0, 0, 255): 0,
+        (255, 255, 0): 0,
+        (0, 255, 255): 0,
+        (255, 0, 255): 0,
+        (192, 192, 192): 37,
+        (128, 128, 128): 109,
+        (255, 165, 0): 1,
+        (128, 0, 128): 1,
+        (0, 128, 128): 113,
+        (0, 0, 0): 135,
+    },
+    "Winter Squid": {
+        (255, 0, 0): 0,
+        (0, 255, 0): 0,
+        (0, 0, 255): 0,
+        (255, 255, 0): 0,
+        (0, 255, 255): 0,
+        (255, 0, 255): 2,
+        (192, 192, 192): 39,
+        (128, 128, 128): 59,
+        (255, 165, 0): 0,
+        (128, 0, 128): 69,
+        (0, 128, 128): 0,
+        (0, 0, 0): 231,
+    },
     "Raw Mithril Head Trout": {
         (255, 0, 0): 0,
         (0, 255, 0): 0,
@@ -145,5 +173,5 @@ LOOT_COLOR_DATA = {
 BLACKLIST_STRINGS = list(LOOT_COLOR_DATA.keys())
 
 
-#sort LOOT_COLOR_DATA by key alphabetically
+# sort LOOT_COLOR_DATA by key alphabetically
 LOOT_COLOR_DATA = dict(sorted(LOOT_COLOR_DATA.items(), key=lambda item: item[0]))
