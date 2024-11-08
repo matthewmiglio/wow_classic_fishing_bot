@@ -3,7 +3,6 @@ import threading
 import pyautogui
 import numpy as np
 from numpy import ndarray
-from collections import defaultdict
 import random
 import time
 import pygetwindow
@@ -13,7 +12,11 @@ import cv2
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
 from gui import GUI, GUI_WINDOW_NAME
-from loot_constants import LOOT_COLOR_DATA
+from image_rec import (
+    classification_scorer,
+    get_color_frequencies,
+    calculate_class_score,
+)
 
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
@@ -254,6 +257,58 @@ class WoWFishBot:
 
         t = threading.Thread(target=_to_wrap, args=(x, y, wait))
         t.start()
+
+    def check_for_wow_menu(self):
+        def format_score(score):
+            score = float(score) * 100
+            string = str(score).split(".")[0] + "%"
+            return string
+
+        wow_image = self.get_wow_image()
+        wow_image = cv2.resize(wow_image, (256, 256))
+        these_colors = get_color_frequencies(wow_image)
+        char_menu_colors = {
+            (255, 0, 0): 8,
+            (0, 255, 0): 0,
+            (0, 0, 255): 0,
+            (255, 255, 0): 69,
+            (0, 255, 255): 1,
+            (255, 0, 255): 0,
+            (192, 192, 192): 16334,
+            (128, 128, 128): 27095,
+            (255, 165, 0): 1191,
+            (128, 0, 128): 381,
+            (0, 128, 128): 651,
+            (0, 0, 0): 19806,
+        }
+        main_menu_colors = {
+            (255, 0, 0): 1339,
+            (0, 255, 0): 0,
+            (0, 0, 255): 0,
+            (255, 255, 0): 246,
+            (0, 255, 255): 0,
+            (255, 0, 255): 0,
+            (192, 192, 192): 2357,
+            (128, 128, 128): 4042,
+            (255, 165, 0): 4168,
+            (128, 0, 128): 2073,
+            (0, 128, 128): 737,
+            (0, 0, 0): 50574,
+        }
+        main_menu_score = calculate_class_score(these_colors, main_menu_colors)
+        char_menu_score = calculate_class_score(these_colors, char_menu_colors)
+
+        if main_menu_score > 0.99:
+            print(f"Detected wow main menu with score of {format_score(main_menu_score)}")
+            return True
+        elif char_menu_score > 0.99:
+            print(
+                f"Detected wow character menu with score of {format_score(char_menu_score)}"
+            )
+            return True
+
+        return False
+
 
     # gui stuff
     def update_gui(self, stat, value):
@@ -525,6 +580,16 @@ class WoWFishBot:
 
         return (x1, y1, x2, y2)
 
+    def get_wow_image(self):
+        # get the wow image
+        window_name = WOW_WINDOW_NAME
+        window = pygetwindow.getWindowsWithTitle(window_name)[0]
+        self.dynamic_image_topleft = (window.left, window.top)
+        region = (window.left, window.top, window.width, window.height)
+        wow_image = pyautogui.screenshot(region=region)
+        wow_image_np = np.array(wow_image)
+        return wow_image_np
+
     # settings stuff
     def set_blacklist(self):
         self.loot_classifier.blacklist_loot = self.gui.get_blacklist_settings()
@@ -538,6 +603,10 @@ class WoWFishBot:
 
         # main loop
         while self.running_event.is_set():
+            #check if game is on any of the menus instead of actually fishing
+            if self.check_for_wow_menu():
+                return False
+
             start_time = time.time()
             base_image = self.get_roi_image()
 
@@ -659,21 +728,9 @@ class Logger:
 
 
 class LootClassifier:
-    COLOR_PALETTE = [
-        (255, 0, 0),  # Red
-        (0, 255, 0),  # Green
-        (0, 0, 255),  # Blue
-        (255, 255, 0),  # Yellow
-        (0, 255, 255),  # Cyan
-        (255, 0, 255),  # Magenta
-        (192, 192, 192),  # Silver
-        (128, 128, 128),  # Gray
-        (255, 165, 0),  # Orange
-        (128, 0, 128),  # Purple
-        (0, 128, 128),  # Teal
-        (0, 0, 0),  # Black
-    ]
-    POSITIVE_DETECTION_THRESHOLD = 0.99
+
+    POSITIVE_DETECTION_THRESHOLD = 1
+    # POSITIVE_DETECTION_THRESHOLD = 0.99
 
     def __init__(self):
         self.blacklist_loot = [
@@ -752,46 +809,6 @@ class LootClassifier:
         ]
         return all_pixels_equal(pixels, colors)
 
-    def get_color_frequencies(self, image: np.ndarray) -> dict:
-        """
-        Returns a dictionary of 12 colors and the frequency of pixels that align with that color.
-
-        Args:
-            image (np.ndarray): A numpy array representing the image, expected to be of shape (height, width, 3).
-
-        Returns:
-            dict: A dictionary where keys are RGB color tuples and values are their pixel frequencies.
-        """
-        # Initialize the dictionary to count frequencies
-        color_count = defaultdict(int)
-
-        # inti it will all the colors at zero
-        for color in self.COLOR_PALETTE:
-            color_count[color] = 0
-
-        # Reshape the image to a 2D array of pixels (each pixel is a 3-element RGB tuple)
-        height, width, _ = image.shape
-        pixels = image.reshape(-1, 3)
-
-        # Iterate over each pixel
-        for pixel in pixels:
-            # Find the closest color in the COLOR_PALETTE
-            min_distance = float("inf")
-            closest_color = None
-
-            for color in self.COLOR_PALETTE:
-                # Calculate Euclidean distance between the pixel and each color
-                distance = np.linalg.norm(np.array(pixel) - np.array(color))
-
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_color = color
-
-            # Increment the frequency for the closest color
-            color_count[closest_color] += 1
-
-        return dict(color_count)
-
     def save_unknown_loot_image(self, image, dict):
         def make_new_text_file(fp, text):
             with open(fp, "w") as f:
@@ -831,16 +848,16 @@ class LootClassifier:
         loot_image = self.get_loot_image()
         print(
             "Loot colors:",
-            loot_colors_to_printable(self.get_color_frequencies(loot_image)),
+            loot_colors_to_printable(get_color_frequencies(loot_image)),
         )
 
-        class_scores = self.classification_scorer(loot_image)
+        class_scores = classification_scorer(loot_image)
         # print("\nRaw class scores\n", class_scores)
 
         best_label, best_score = get_highest_score(class_scores)
 
         if best_score < self.POSITIVE_DETECTION_THRESHOLD:
-            color_dict = self.get_color_frequencies(loot_image)
+            color_dict = get_color_frequencies(loot_image)
             self.save_unknown_loot_image(loot_image, color_dict)
 
         formatted_best_score = str(float(best_score) * 100).split(".")[0] + "%"
@@ -848,67 +865,6 @@ class LootClassifier:
         print("Score:", formatted_best_score)
 
         return (best_label, best_score)
-
-    def classification_scorer(self, image: np.ndarray) -> list:
-        """
-        Classifies the image and returns a list of tuples (class_name, score) based on color similarity.
-
-        Args:
-            image (np.ndarray): The image to classify.
-
-        Returns:
-            list: A list of tuples in the form (class_name, score).
-        """
-        # Step 1: Get the color frequencies of the image
-        image_color_frequencies = self.get_color_frequencies(image)
-
-        # Step 2: Compare the image color frequencies against each class in loot_dict
-        scores = {}
-        for class_name, class_color_frequencies in LOOT_COLOR_DATA.items():
-            # Calculate the score for this class
-            score = self.calculate_class_score(
-                image_color_frequencies, class_color_frequencies
-            )
-            scores[class_name] = score
-
-        return scores
-
-    def calculate_class_score(
-        self, image_frequencies: dict, class_frequencies: dict
-    ) -> float:
-        """
-        Calculate a score for a class based on how well its color frequencies match the image.
-
-        Args:
-            image_frequencies (dict): The color frequencies of the image.
-            class_frequencies (dict): The color frequencies for the class.
-
-        Returns:
-            float: A score between 0 and 1.
-        """
-        # We can compute the similarity as an inverse of the Euclidean distance
-        distance = 0.0
-        total_pixels = sum(image_frequencies.values())
-
-        # Iterate through all color keys (we assume the color palette is the same for all classes)
-        for color in self.COLOR_PALETTE:
-            image_count = image_frequencies.get(color, 0)
-            class_count = class_frequencies.get(color, 0)
-
-            # We calculate the squared difference of the relative frequencies of each color
-            image_relative_frequency = (
-                image_count / total_pixels if total_pixels > 0 else 0
-            )
-            class_relative_frequency = (
-                class_count / total_pixels if total_pixels > 0 else 0
-            )
-
-            distance += (image_relative_frequency - class_relative_frequency) ** 2
-
-        # Step 4: Convert the distance to a score (using the inverse of the distance)
-        score = 1 / (1 + distance)  # Higher scores mean more similar
-
-        return score
 
     def get_loot_image(self) -> ndarray:
         image = pyautogui.screenshot(region=[944, 147, 20, 20])
@@ -919,8 +875,5 @@ class LootClassifier:
 if __name__ == "__main__":
     run_bot_with_gui()
 
-    # bot = WoWFishBot(None, save_images=False,)
-    # lc =  LootClassifier()
-    # image = lc.get_loot_image()
-    # plt.imshow(image)
-    # plt.show()
+
+
