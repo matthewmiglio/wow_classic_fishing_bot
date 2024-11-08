@@ -13,7 +13,7 @@ import cv2
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
 from gui import GUI, GUI_WINDOW_NAME
-from constants import LOOT_COLOR_DATA
+from loot_constants import LOOT_COLOR_DATA
 
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
@@ -86,7 +86,7 @@ class WoWFishBot:
 
         # ai models
         self.bobber_detector = BobberDetector(
-            r"inference\bobber_models\bobber_finder3.0.onnx"
+            r"inference\bobber_models\bobber_finder4.0.onnx"
         )
         self.splash_classifier = SplashClassifier(
             r"inference\splash_models\splash_classifier4.0.onnx"
@@ -99,6 +99,9 @@ class WoWFishBot:
         self.start_file_clean_thread(
             self.save_images_dir, self.save_images_folder_file_limit
         )
+
+        # logger
+        self.logger = Logger()
 
         # stats
         self.casts = 0
@@ -163,11 +166,11 @@ class WoWFishBot:
         return True
 
     def start_fishing(self):
-
         self.focus_wow()
         pyautogui.press("z")
         self.casts += 1
         self.update_gui("casts", self.casts)
+        self.logger.add_to_fishing_log("attempt")
 
     def click_bobber_bbox(self, bbox):
         x1, y1, x2, y2 = bbox
@@ -298,6 +301,7 @@ class WoWFishBot:
         if should_add_reel() is True:
             self.time_of_last_reel = time.time()
             self.reels += 1
+            self.logger.add_to_fishing_log("success")
             self.update_gui("reels", self.reels)
 
     def gui_orientation_thread(self):
@@ -548,7 +552,9 @@ class WoWFishBot:
 
             # if loot window exists, handle that
             if self.loot_classifier.loot_window_exists():
-                self.loot_classifier.collect_loot()
+                loot = self.loot_classifier.collect_loot()
+                if loot:
+                    self.logger.add_to_loot_log(loot)
 
             # if a bobber detected
             if score > self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION:
@@ -583,7 +589,9 @@ class WoWFishBot:
                     self.click_bobber_bbox(bbox)
 
                     self.set_blacklist()
-                    self.loot_classifier.collect_loot()
+                    loot = self.loot_classifier.collect_loot()
+                    if loot:
+                        self.logger.add_to_loot_log(loot)
 
                 # if we want to save the splash images
                 if self.save_splash_images_toggle:
@@ -596,7 +604,7 @@ class WoWFishBot:
                 self.gui.update_image(self.get_roi_image(), "raw_image")
                 self.gui.update_stat("splash_detected", "No")
                 self.add_splash_prediction("none")
-                none_detection_threshold = (10, 20)
+                none_detection_threshold = (30, 40)
                 if self.last_predictions_equal(
                     prediction="none",
                     prediction_count=none_detection_threshold[0],
@@ -611,7 +619,43 @@ class WoWFishBot:
             self.add_time_taken(time.time() - start_time)
 
 
+class Logger:
+    def __init__(self):
+        self.logs_folder = r"logs"
+        os.makedirs(self.logs_folder, exist_ok=True)
 
+        self.fishing_attempts_log = os.path.join(
+            self.logs_folder, "fishing_attempts.txt"
+        )
+        self.loot_log = os.path.join(self.logs_folder, "loot_log.txt")
+        self.init_logs()
+
+    def init_logs(self):
+        if not os.path.exists(self.fishing_attempts_log):
+            with open(self.fishing_attempts_log, "w") as f:
+                f.write("")
+
+        if not os.path.exists(self.loot_log):
+            with open(self.loot_log, "w") as f:
+                f.write("")
+
+    def add_to_fishing_log(self, type: str):
+        # type should either be ['attempt','success']
+        with open(self.fishing_attempts_log, "a") as f:
+            log_string = f"{time.time()} {type}\n"
+            f.write(log_string)
+
+    def add_to_loot_log(self, loot: str):
+        with open(self.loot_log, "a") as f:
+            f.write(f"{time.time()} {loot}\n")
+
+    def get_fishing_log(self):
+        with open(self.fishing_attempts_log, "r") as f:
+            return f.read()
+
+    def get_loot_log(self):
+        with open(self.loot_log, "r") as f:
+            return f.read()
 
 
 class LootClassifier:
@@ -653,6 +697,7 @@ class LootClassifier:
 
     def collect_loot(self) -> bool:
         print(f"This time, blacklist = {self.blacklist_loot}")
+
         # wait for loot window to appear
         if self.wait_for_loot_window() is False:
             print("Loot window did not appear in time.")
@@ -661,7 +706,7 @@ class LootClassifier:
         # classify that loot
         loot_classification, score = self.classify_loot()
         if score < self.POSITIVE_DETECTION_THRESHOLD:
-            # input(f"This is a low score. is this a new loot type?")
+            print("This is a low score. is this a new loot type?")
             loot_classification = f"unknown_{score}_" + loot_classification
 
         # if its blacklist loot, close the loot window to skip it
@@ -669,13 +714,16 @@ class LootClassifier:
         if loot_classification in self.blacklist_loot:
             print("That's a blacklisted loot. Closing loot window.")
             pyautogui.click(*close_loot_coords, clicks=3, interval=0.5)
-            return False
 
-        # click the loot
-        collect_loot_coords = (950, 160)
-        pyautogui.click(*collect_loot_coords, button="right", clicks=3, interval=0.3)
+        # else click the loot to collect it
+        else:
+            print("This loot type isnt blacklisted. Collecting it...")
+            collect_loot_coords = (950, 160)
+            pyautogui.click(
+                *collect_loot_coords, button="right", clicks=3, interval=0.3
+            )
 
-        return True
+        return loot_classification
 
     def loot_window_exists(self):
         image = np.asarray(pyautogui.screenshot())
