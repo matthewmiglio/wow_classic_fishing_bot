@@ -138,28 +138,61 @@ class GUI:
         self.blacklist_frame.grid(row=0, column=1, padx=10, pady=10)
 
         # Create the listboxes
-        self.whitelist_listbox = tk.Listbox(self.whitelist_frame, height=15, width=30, selectmode=tk.SINGLE)
+        self.whitelist_listbox = tk.Listbox(
+            self.whitelist_frame, height=15, width=30, selectmode=tk.SINGLE
+        )
         self.whitelist_listbox.pack(side=tk.LEFT, padx=5, pady=5)
 
-        self.blacklist_listbox = tk.Listbox(self.blacklist_frame, height=15, width=30, selectmode=tk.SINGLE)
+        self.blacklist_listbox = tk.Listbox(
+            self.blacklist_frame, height=15, width=30, selectmode=tk.SINGLE
+        )
         self.blacklist_listbox.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Buttons to move items
-        self.move_to_blacklist_button = ttk.Button(self.blacklist_window, text="Add to Blacklist", command=self.move_to_blacklist)
+        self.move_to_blacklist_button = ttk.Button(
+            self.blacklist_window,
+            text="Add to Blacklist",
+            command=self.move_to_blacklist,
+        )
         self.move_to_blacklist_button.grid(row=1, column=0, padx=5, pady=5)
 
-        self.move_to_whitelist_button = ttk.Button(self.blacklist_window, text="Add to Whitelist", command=self.move_to_whitelist)
+        self.move_to_whitelist_button = ttk.Button(
+            self.blacklist_window,
+            text="Add to Whitelist",
+            command=self.move_to_whitelist,
+        )
         self.move_to_whitelist_button.grid(row=1, column=1, padx=5, pady=5)
+
+        # Buttons to move all items
+        self.move_all_to_blacklist_button = ttk.Button(
+            self.blacklist_window,
+            text="Move All to Blacklist",
+            command=self.move_all_to_blacklist,
+        )
+        self.move_all_to_blacklist_button.grid(row=2, column=0, padx=5, pady=5)
+
+        self.move_all_to_whitelist_button = ttk.Button(
+            self.blacklist_window,
+            text="Move All to Whitelist",
+            command=self.move_all_to_whitelist,
+        )
+        self.move_all_to_whitelist_button.grid(row=2, column=1, padx=5, pady=5)
 
         # Load the blacklist settings and populate the lists
         self.load_blacklist_settings()
 
         # Save and Close buttons
-        self.save_button = ttk.Button(self.blacklist_window, text="Save Settings", command=self.save_blacklist_settings)
-        self.save_button.grid(row=2, column=0, padx=5, pady=5)
+        self.save_button = ttk.Button(
+            self.blacklist_window,
+            text="Save Settings",
+            command=self.save_blacklist_settings,
+        )
+        self.save_button.grid(row=3, column=0, padx=5, pady=5)
 
-        self.close_button = ttk.Button(self.blacklist_window, text="Close", command=self.close_blacklist_gui)
-        self.close_button.grid(row=2, column=1, padx=5, pady=5)
+        self.close_button = ttk.Button(
+            self.blacklist_window, text="Close", command=self.close_blacklist_gui
+        )
+        self.close_button.grid(row=3, column=1, padx=5, pady=5)
 
     def move_to_blacklist(self):
         """Move selected item from whitelist to blacklist."""
@@ -175,12 +208,26 @@ class GUI:
             self.blacklist_listbox.delete(tk.ACTIVE)
             self.whitelist_listbox.insert(tk.END, selected_item)
 
+    def move_all_to_blacklist(self):
+        """Move all items from whitelist to blacklist."""
+        for item in self.whitelist_listbox.get(0, tk.END):
+            self.blacklist_listbox.insert(tk.END, item)
+        self.whitelist_listbox.delete(0, tk.END)
+
+    def move_all_to_whitelist(self):
+        """Move all items from blacklist to whitelist."""
+        for item in self.blacklist_listbox.get(0, tk.END):
+            self.whitelist_listbox.insert(tk.END, item)
+        self.blacklist_listbox.delete(0, tk.END)
+
     def load_blacklist_settings(self):
         """Initialize the positions of each string according to settings.txt."""
         if os.path.exists(self.save_settings_path):
             with open(self.save_settings_path, "r") as f:
                 saved_settings = f.read().split(",")
-                saved_settings = [item.strip() for item in saved_settings if item.strip()]
+                saved_settings = [
+                    item.strip() for item in saved_settings if item.strip()
+                ]
 
             # Populate the whitelist and blacklist based on saved settings
             for item in BLACKLIST_STRINGS:
