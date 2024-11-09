@@ -89,7 +89,7 @@ class WoWFishBot:
 
         # ai models
         self.bobber_detector = BobberDetector(
-            r"inference\bobber_models\bobber_finder4.0.onnx"
+            r"inference\bobber_models\bobber_finder5.0.onnx"
         )
         self.splash_classifier = SplashClassifier(
             r"inference\splash_models\splash_classifier4.0.onnx"
@@ -230,7 +230,7 @@ class WoWFishBot:
                 pass
 
         def _to_wrap():
-            while 1:
+            while self.running_event.is_set():
                 try:
                     if not valid_size():
                         resize_wow()
@@ -299,7 +299,9 @@ class WoWFishBot:
         char_menu_score = calculate_class_score(these_colors, char_menu_colors)
 
         if main_menu_score > 0.99:
-            print(f"Detected wow main menu with score of {format_score(main_menu_score)}")
+            print(
+                f"Detected wow main menu with score of {format_score(main_menu_score)}"
+            )
             return True
         elif char_menu_score > 0.99:
             print(
@@ -308,7 +310,6 @@ class WoWFishBot:
             return True
 
         return False
-
 
     # gui stuff
     def update_gui(self, stat, value):
@@ -371,7 +372,7 @@ class WoWFishBot:
 
         def _to_wrap():
             gui_window_name = GUI_WINDOW_NAME
-            while 1:
+            while  self.running_event.is_set():
                 try:
                     if not valid_position():
                         window: pygetwindow.Window = pygetwindow.getWindowsWithTitle(
@@ -455,7 +456,7 @@ class WoWFishBot:
                     continue
 
         def _to_wrap():
-            while 1:
+            while  self.running_event.is_set():
                 clean_excess_pngs()
                 time.sleep(120)
 
@@ -603,7 +604,7 @@ class WoWFishBot:
 
         # main loop
         while self.running_event.is_set():
-            #check if game is on any of the menus instead of actually fishing
+            # check if game is on any of the menus instead of actually fishing
             if self.check_for_wow_menu():
                 return False
 
@@ -874,6 +875,3 @@ class LootClassifier:
 
 if __name__ == "__main__":
     run_bot_with_gui()
-
-
-
