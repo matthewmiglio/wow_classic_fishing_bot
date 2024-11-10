@@ -20,7 +20,7 @@ from image_rec import (
 
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
-DISPLAY_IMAGE_SIZE = 100
+DISPLAY_IMAGE_SIZE = 200
 WOW_CLIENT_RESIZE = (1000, 700)
 WOW_WINDOW_NAME = "World of Warcraft"
 TOP_SAVE_DIR = "save_images"
@@ -74,18 +74,27 @@ def run_bot_with_gui():
 
 class WoWFishBot:
     MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
+    CAST_TIMEOUT = 3  # s
 
     def __init__(self, gui, save_images=False):
+        # loot detection module
+        self.loot_classifier = LootClassifier()
+
         # gui
         self.gui = gui
         self.running_event = threading.Event()  # Control the bot running state
         self.gui_orientation_thread()
+        self.gui.update_image(
+            self.make_image("  Waiting for start..."), "bobber"
+        )  # TODO idfk why its different
+        self.update_gui(
+            "raw_image",
+            self.make_image("  Waiting for start..."),
+        )  # TODO idfk why its different
+        self.update_loot_history_stats()
 
         # wow client
         self.wow_orientation_thread()
-
-        # loot detection module
-        self.loot_classifier = LootClassifier()
 
         # ai models
         self.bobber_detector = BobberDetector(
@@ -110,11 +119,12 @@ class WoWFishBot:
         self.casts = 0
         self.reels = 0
         self.time_of_last_reel = None
+        self.time_of_last_cast = None
         self.time_running = 0
 
         # prediction storage
-        self.prediction_history = []  # used to store the last 8 predictionsz
-        self.splash_prediction_history_limit = 100
+        self.predictions = []  # used to store the last predictions
+        self.splash_prediction_history_limit = 1000
 
         # vars related to dynamic roi image
         self.dynamic_image_topleft = (0, 0)
@@ -122,38 +132,97 @@ class WoWFishBot:
         self.stretched_size = (256, 256)
 
     # prediction stuff
-    def add_splash_prediction(self, prediction):
-        # add the prediction to the history while removing the oldest
-        if "not" in prediction:
-            prediction = "not"
-        elif "splash" in prediction:
-            prediction = "splash"
-        self.prediction_history.append(prediction)
+    def print_predictions(self):
+        def format_ts(this_ts,first_ts):
+            diff = this_ts - first_ts
+            return str(diff)
 
-        # if its longer than limit remove the oldest one
-        if len(self.prediction_history) > self.splash_prediction_history_limit:
-            self.prediction_history.remove(self.prediction_history[0])
+        if len(self.predictions) == 0:return
+        first_ts = self.predictions[0]["time"]
+        for prediction in self.predictions:
+            bobber_exists = str(prediction["bobber_exists"])
+            bobber_position = str(prediction["bobber_position"])
+            is_splash = str(prediction["is_splash"])
+            ts = (prediction["time"])
+            ts = format_ts(ts,first_ts)
+            print(
+                "bobber?: {:^6} splash?: {:^6} {:^20} ts: {}".format(
+                    bobber_exists, is_splash, bobber_position, ts
+                )
+            )
+        print(f"Holding {len(self.predictions)} predictions")
 
     def last_predictions_equal(
-        self, prediction, prediction_count, prediction_history_length=12
-    ):
-        # most recent prediction should be the target prediction
-        if prediction not in self.prediction_history[-1]:
+        self,
+        prediction_key,
+        target_prediction_value,
+        history_in_seconds=3,
+        occurence_ratio=0.5,
+    ) -> bool:
+        """
+        Example prediction datum:
+        {
+            "bobber_exists": bobber_exists,
+            "bobber_position": bobber_xywh,
+            "is_splash": is_splash,
+            "time": time.time(),
+        }
+        """
+
+        # if prediction history is empty, return False
+        if len(self.predictions) == 0:
             return False
 
-        # count up the number of times the target prediction has been made in the recent history_length count
-        cut_prediction_history = self.prediction_history[-prediction_history_length:]
-        count = 0
-        for prediction in cut_prediction_history:
-            if prediction in prediction:
-                count += 1
+        # Get the latest timestamp from the last prediction
+        last_ts = self.predictions[-1]["time"]
+        first_ts = (
+            last_ts - history_in_seconds
+        )  # Time window starts from `history_in_seconds` ago
 
-        # if the count is greater than the equal_count, return True
-        if count > prediction_count:
-            self.prediction_history = []
-            return True
+        positives = 0
+        total = 0
 
-        return False
+        for prediction in self.predictions:
+            if (
+                prediction["time"] < first_ts
+            ):  # Stop processing if we're outside the time window
+                continue
+
+            this_prediction_value = prediction[prediction_key]
+            if this_prediction_value == target_prediction_value:
+                positives += 1
+            total += 1
+
+        # Ensure there were some predictions within the history window
+        if total == 0:
+            return False
+
+        ratio = positives / total
+        return ratio > occurence_ratio
+
+    def add_to_prediction_history(
+        self, is_splash: bool, bobber_exists: bool, bobber_xywh: list[float]
+    ):
+        # if we're missing the bbox, use the previous one
+        if bobber_xywh is None and len(self.predictions) > 0:
+            bobber_xywh = self.predictions[-1]["bobber_position"]
+
+        # if we're missing the is_splash, use the previous one
+        if is_splash is None:
+            is_splash = (
+                self.predictions[-1]["is_splash"]
+                if len(self.predictions) != 0
+                else False
+            )
+
+        self.predictions.append(
+            {
+                "bobber_exists": bobber_exists,
+                "bobber_position": bobber_xywh,
+                "is_splash": is_splash,
+                "time": time.time(),
+            }
+        )
 
     # wow client stuff
     def focus_wow(self):
@@ -230,7 +299,8 @@ class WoWFishBot:
                 pass
 
         def _to_wrap():
-            while self.running_event.is_set():
+            time.sleep(4)
+            while 1:
                 try:
                     if not valid_size():
                         resize_wow()
@@ -247,6 +317,7 @@ class WoWFishBot:
 
         if self.gui is None:
             return
+
         t = threading.Thread(target=_to_wrap)
         t.start()
 
@@ -257,59 +328,6 @@ class WoWFishBot:
 
         t = threading.Thread(target=_to_wrap, args=(x, y, wait))
         t.start()
-
-    def check_for_wow_menu(self):
-        def format_score(score):
-            score = float(score) * 100
-            string = str(score).split(".")[0] + "%"
-            return string
-
-        wow_image = self.get_wow_image()
-        wow_image = cv2.resize(wow_image, (256, 256))
-        these_colors = get_color_frequencies(wow_image)
-        char_menu_colors = {
-            (255, 0, 0): 8,
-            (0, 255, 0): 0,
-            (0, 0, 255): 0,
-            (255, 255, 0): 69,
-            (0, 255, 255): 1,
-            (255, 0, 255): 0,
-            (192, 192, 192): 16334,
-            (128, 128, 128): 27095,
-            (255, 165, 0): 1191,
-            (128, 0, 128): 381,
-            (0, 128, 128): 651,
-            (0, 0, 0): 19806,
-        }
-        main_menu_colors = {
-            (255, 0, 0): 1339,
-            (0, 255, 0): 0,
-            (0, 0, 255): 0,
-            (255, 255, 0): 246,
-            (0, 255, 255): 0,
-            (255, 0, 255): 0,
-            (192, 192, 192): 2357,
-            (128, 128, 128): 4042,
-            (255, 165, 0): 4168,
-            (128, 0, 128): 2073,
-            (0, 128, 128): 737,
-            (0, 0, 0): 50574,
-        }
-        main_menu_score = calculate_class_score(these_colors, main_menu_colors)
-        char_menu_score = calculate_class_score(these_colors, char_menu_colors)
-
-        if main_menu_score > 0.99:
-            print(
-                f"Detected wow main menu with score of {format_score(main_menu_score)}"
-            )
-            return True
-        elif char_menu_score > 0.99:
-            print(
-                f"Detected wow character menu with score of {format_score(char_menu_score)}"
-            )
-            return True
-
-        return False
 
     # gui stuff
     def update_gui(self, stat, value):
@@ -339,9 +357,29 @@ class WoWFishBot:
             self.gui.update_stat("casts", value)
         if stat == "reels":
             self.gui.update_stat("reels", value)
-
         if stat == "runtime":
             self.gui.update_stat("runtime", value)
+
+    def update_loot_history_stats(self):
+        def example_loot_history():
+            l = []
+            for _ in range(random.randint(1, 10)):
+                l.append("Example Fish #1")
+            for _ in range(random.randint(1, 10)):
+                l.append("Example Fish #2")
+            for _ in range(random.randint(1, 10)):
+                l.append("Example Fish #3")
+
+            return l
+
+        loot_history = (
+            self.loot_classifier.history
+            if self.loot_classifier.history != []
+            else example_loot_history()
+        )
+
+        print(f"Updating gui with loot history: {loot_history}")
+        self.gui.update_loot_history(loot_history)
 
     def add_reel(self):
         def should_add_reel():
@@ -372,7 +410,8 @@ class WoWFishBot:
 
         def _to_wrap():
             gui_window_name = GUI_WINDOW_NAME
-            while  self.running_event.is_set():
+            time.sleep(4)
+            while 1:
                 try:
                     if not valid_position():
                         window: pygetwindow.Window = pygetwindow.getWindowsWithTitle(
@@ -392,16 +431,17 @@ class WoWFishBot:
         t = threading.Thread(target=_to_wrap)
         t.start()
 
-    def make_no_bobber_image(self):
-        img = np.ones((DISPLAY_IMAGE_SIZE, DISPLAY_IMAGE_SIZE, 3), np.uint8) * 155
+    def make_image(self, text):
+        bg_color = 0
+        img = np.ones((DISPLAY_IMAGE_SIZE, DISPLAY_IMAGE_SIZE, 3), np.uint8) * bg_color
         font = cv2.FONT_HERSHEY_SIMPLEX
         bottomLeftCornerOfText = (10, DISPLAY_IMAGE_SIZE // 2)
         fontScale = 0.5
-        fontColor = (135, 0, 0)
+        fontColor = (200, 200, 200)
         lineType = 2
         cv2.putText(
             img,
-            "No bobber",
+            text,
             bottomLeftCornerOfText,
             font,
             fontScale,
@@ -456,7 +496,7 @@ class WoWFishBot:
                     continue
 
         def _to_wrap():
-            while  self.running_event.is_set():
+            while 1:
                 clean_excess_pngs()
                 time.sleep(120)
 
@@ -604,9 +644,6 @@ class WoWFishBot:
 
         # main loop
         while self.running_event.is_set():
-            # check if game is on any of the menus instead of actually fishing
-            if self.check_for_wow_menu():
-                return False
 
             start_time = time.time()
             base_image = self.get_roi_image()
@@ -619,12 +656,6 @@ class WoWFishBot:
             bbox, score = self.bobber_detector.detect_object_in_image(
                 base_image, draw_result=False
             )
-
-            # if loot window exists, handle that
-            if self.loot_classifier.loot_window_exists():
-                loot = self.loot_classifier.collect_loot()
-                if loot:
-                    self.logger.add_to_loot_log(loot)
 
             # if a bobber detected
             if score > self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION:
@@ -647,11 +678,20 @@ class WoWFishBot:
                 self.update_gui("splash_detected", is_splash)
 
                 # if the bobber is a splash, we click it to reel in the fish
-                self.add_splash_prediction(is_splash)
+                if "splash" in is_splash:
+                    is_splash_bool = True
+                else:
+                    is_splash_bool = False
+
+                self.add_to_prediction_history(
+                    is_splash_bool, bobber_exists=True, bobber_xywh=bbox
+                )
+                self.print_predictions()
                 if self.last_predictions_equal(
-                    prediction="splash",
-                    prediction_count=6,
-                    prediction_history_length=12,
+                    "is_splash",
+                    True,
+                    history_in_seconds=1,
+                    occurence_ratio=0.3,
                 ):
                     print("Splash detected! Reeling in fish!")
                     self.add_reel()
@@ -662,6 +702,7 @@ class WoWFishBot:
                     loot = self.loot_classifier.collect_loot()
                     if loot:
                         self.logger.add_to_loot_log(loot)
+                        self.update_loot_history_stats()
 
                 # if we want to save the splash images
                 if self.save_splash_images_toggle:
@@ -670,21 +711,29 @@ class WoWFishBot:
             # if none detected at all
             else:
                 self.gui.update_stat("bobber_detected", "No")
-                self.gui.update_image(self.make_no_bobber_image(), "bobber")
+                self.gui.update_image(self.make_image("No bobber"), "bobber")
                 self.gui.update_image(self.get_roi_image(), "raw_image")
                 self.gui.update_stat("splash_detected", "No")
-                self.add_splash_prediction("none")
-                none_detection_threshold = (30, 40)
+                self.add_to_prediction_history(
+                    None, bobber_exists=False, bobber_xywh=None
+                )
                 if self.last_predictions_equal(
-                    prediction="none",
-                    prediction_count=none_detection_threshold[0],
-                    prediction_history_length=none_detection_threshold[1],
+                    "bobber_exists",
+                    False,
+                    history_in_seconds=3,
+                    occurence_ratio=0.5,
                 ):
-                    print(
-                        f'{none_detection_threshold[0]} of the last {none_detection_threshold[1]} predictions were "none".'
-                    )
-                    print("-" * 50 + "\n" + "Starting fishing...")
-                    self.start_fishing()
+                    if (self.time_of_last_cast is None) or (
+                        time.time() - self.time_of_last_cast > self.CAST_TIMEOUT
+                    ):
+                        print("-" * 50 + "\n" + "Starting fishing...")
+                        self.start_fishing()
+                        self.time_of_last_cast = time.time()
+                        self.predictions = (
+                            []
+                        )  # clear the predictions for new fishing session
+                    else:
+                        print("Bobber not found, but just casted...")
 
             self.add_time_taken(time.time() - start_time)
 
@@ -734,15 +783,8 @@ class LootClassifier:
     # POSITIVE_DETECTION_THRESHOLD = 0.99
 
     def __init__(self):
-        self.blacklist_loot = [
-            # "Raw Brillian Smallfish",
-            # "Raw Bristle Whisker Catfish",
-            # "Raw Longjaw Mud Snapper",
-            # "Raw Rockscale Cod",
-            "Sturdy Locked Chest",
-            "Sealed Crate",
-            # "Raw Spotted Yellowtail",
-        ]
+        self.blacklist_loot = []  # let gui set this
+        self.history: list[str] = []
 
     def wait_for_loot_window(self):
         wait_timeout = 10  # s
@@ -754,7 +796,6 @@ class LootClassifier:
         return False
 
     def collect_loot(self) -> bool:
-        print(f"This time, blacklist = {self.blacklist_loot}")
 
         # wait for loot window to appear
         if self.wait_for_loot_window() is False:
@@ -767,15 +808,17 @@ class LootClassifier:
             print("This is a low score. is this a new loot type?")
             loot_classification = f"unknown_{score}_" + loot_classification
 
+        self.history.append(loot_classification)
+
         # if its blacklist loot, close the loot window to skip it
         close_loot_coords = (1035, 110)
         if loot_classification in self.blacklist_loot:
-            print("That's a blacklisted loot. Closing loot window.")
+            print(f"{loot_classification} is blacklisted! Skipping it...")
             pyautogui.click(*close_loot_coords, clicks=3, interval=0.5)
 
         # else click the loot to collect it
         else:
-            print("This loot type isnt blacklisted. Collecting it...")
+            print(f"{loot_classification} is whitelisted! Collecting it...")
             collect_loot_coords = (950, 160)
             pyautogui.click(
                 *collect_loot_coords, button="right", clicks=3, interval=0.3
@@ -847,10 +890,6 @@ class LootClassifier:
             return list(scores.keys())[0], scores[list(scores.keys())[0]]
 
         loot_image = self.get_loot_image()
-        print(
-            "Loot colors:",
-            loot_colors_to_printable(get_color_frequencies(loot_image)),
-        )
 
         class_scores = classification_scorer(loot_image)
         # print("\nRaw class scores\n", class_scores)
@@ -861,9 +900,7 @@ class LootClassifier:
             color_dict = get_color_frequencies(loot_image)
             self.save_unknown_loot_image(loot_image, color_dict)
 
-        formatted_best_score = str(float(best_score) * 100).split(".")[0] + "%"
-        print("Class:", best_label)
-        print("Score:", formatted_best_score)
+        print("Loot:", best_label, str(float(best_score) * 100).split(".")[0] + "%")
 
         return (best_label, best_score)
 
