@@ -4,15 +4,18 @@ import threading
 from PIL import Image, ImageTk
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from loot_constants import BLACKLIST_STRINGS
 
 
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
-from loot_constants import BLACKLIST_STRINGS
-
+GUI_SIZE = "450x720"
 
 class GUI:
     def __init__(self, root):
         self.root = root
+        self.root.geometry(GUI_SIZE)
         self.root.title(GUI_WINDOW_NAME)
 
         # Create frames for images and stats
@@ -34,6 +37,17 @@ class GUI:
 
         self.bobber_image_display = tk.Label(self.image_frame)
         self.bobber_image_display.grid(row=1, column=1)
+
+        # Create frame for the loot history bar graph
+        self.graph_frame = tk.Frame(self.image_frame)
+        self.graph_frame.grid(row=2, column=0, columnspan=2)
+        self.figure, self.ax = plt.subplots(figsize=(4, 3.2))
+
+        self.figure.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.3)
+
+        # pack that graph
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self.graph_frame)
+        self.canvas.get_tk_widget().pack()
 
         # Create stats table
         self.stats = {
@@ -87,6 +101,52 @@ class GUI:
 
         self.bot = None  # Reference to the bot
 
+    def configure_graph(self):
+        """Configure the aesthetics and settings of the graph."""
+        self.ax.set_title("Seen Fish")
+        self.ax.set_ylabel("#")
+
+        # Set up y-axis formatting
+        self.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x)}"))
+
+        # Configure tick settings
+        self.ax.tick_params(axis="x", labelsize=8)
+        for label in self.ax.get_xticklabels():
+            label.set_rotation(45)  # Rotate labels to avoid overlap
+            label.set_wrap(True)    # Enable text wrapping
+
+        # Ensure x-axis labels don't overlap
+        self.ax.set_xticklabels(
+            self.ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
+        )
+
+    def update_loot_history(self, loot_history):
+        """Update the loot history bar graph."""
+        # Count occurrences of each fish
+        fish_counts = {fish: loot_history.count(fish) for fish in set(loot_history)}
+
+        # Clear the previous graph
+        self.ax.clear()
+
+        # Apply graph configuration
+        self.configure_graph()
+
+        # Plot the new data
+        bars = self.ax.bar(fish_counts.keys(), fish_counts.values())
+
+        # Set x-ticks to be at the center of each bar (this is important if you have non-numeric categories)
+        self.ax.set_xticks([bar.get_x() + bar.get_width() / 2 for bar in bars])
+
+        # Set x-tick labels to the fish names
+        self.ax.set_xticklabels(fish_counts.keys(), rotation=45, ha="right")
+
+        # Redraw the canvas
+        self.canvas.draw()
+
+
+
+
+
     def set_bot(self, bot):
         """Set the bot instance for starting and stopping."""
         self.bot = bot
@@ -125,6 +185,8 @@ class GUI:
         """Update the stats display."""
         if stat_name in self.stats:
             self.stats[stat_name].set(value)
+
+
 
     def open_blacklist_gui(self):
         """Open the popup window for blacklist settings."""
