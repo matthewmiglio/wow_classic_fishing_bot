@@ -135,7 +135,9 @@ class WoWFishBot:
     def print_predictions(self):
         def format_ts(this_ts,first_ts):
             diff = this_ts - first_ts
-            return str(diff)
+            integer,decimals= str(diff)
+            number = str(integer) + '.' + str(decimals)[:2]
+            return number
 
         if len(self.predictions) == 0:return
         first_ts = self.predictions[0]["time"]
@@ -378,7 +380,6 @@ class WoWFishBot:
             else example_loot_history()
         )
 
-        print(f"Updating gui with loot history: {loot_history}")
         self.gui.update_loot_history(loot_history)
 
     def add_reel(self):
