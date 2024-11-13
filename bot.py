@@ -73,7 +73,8 @@ def run_bot_with_gui():
 
 
 class WoWFishBot:
-    MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
+    # MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
+    MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.05
     CAST_TIMEOUT = 3  # s
 
     def __init__(self, gui, save_images=False):
@@ -135,7 +136,7 @@ class WoWFishBot:
     def print_predictions(self):
         def format_ts(this_ts,first_ts):
             diff = this_ts - first_ts
-            integer,decimals= str(diff)
+            integer,decimals= str(diff).split('.')
             number = str(integer) + '.' + str(decimals)[:2]
             return number
 
