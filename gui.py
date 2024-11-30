@@ -12,8 +12,10 @@ from loot_constants import BLACKLIST_STRINGS
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
 GUI_SIZE = "450x720"
 
+
 class GUI:
     def __init__(self, root):
+        print('Initializing GUI...')
         self.root = root
         self.root.geometry(GUI_SIZE)
         self.root.title(GUI_WINDOW_NAME)
@@ -85,6 +87,9 @@ class GUI:
 
         # save settings location
         self.save_settings_path = r"settings.txt"
+        if not os.path.exists(self.save_settings_path):
+            with open(self.save_settings_path, "w") as f:
+                f.write("")
 
         # Create Start and Stop buttons
         self.start_button = ttk.Button(root, text="Start", command=self.start_bot)
@@ -113,7 +118,7 @@ class GUI:
         self.ax.tick_params(axis="x", labelsize=8)
         for label in self.ax.get_xticklabels():
             label.set_rotation(45)  # Rotate labels to avoid overlap
-            label.set_wrap(True)    # Enable text wrapping
+            label.set_wrap(True)  # Enable text wrapping
 
         # Ensure x-axis labels don't overlap
         self.ax.set_xticklabels(
@@ -142,10 +147,6 @@ class GUI:
 
         # Redraw the canvas
         self.canvas.draw()
-
-
-
-
 
     def set_bot(self, bot):
         """Set the bot instance for starting and stopping."""
@@ -185,8 +186,6 @@ class GUI:
         """Update the stats display."""
         if stat_name in self.stats:
             self.stats[stat_name].set(value)
-
-
 
     def open_blacklist_gui(self):
         """Open the popup window for blacklist settings."""
