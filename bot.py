@@ -16,6 +16,7 @@ from image_rec import (
     classification_scorer,
     get_color_frequencies,
 )
+from _FEATURE_FLAGS import INCLUDE_BLACKLIST_FEATURE
 
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
@@ -813,6 +814,10 @@ class LootClassifier:
         return False
 
     def collect_loot(self) -> bool:
+        #if blacklist is off, we assume autoloot is on, so skip collect_loot()
+        if INCLUDE_BLACKLIST_FEATURE is not True:
+            return True
+
         # wait for loot window to appear
         if self.wait_for_loot_window() is False:
             print("Loot window did not appear in time.")

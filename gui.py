@@ -7,6 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from loot_constants import BLACKLIST_STRINGS
+from _FEATURE_FLAGS import INCLUDE_BLACKLIST_FEATURE
 
 
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
@@ -41,15 +42,16 @@ class GUI:
         self.bobber_image_display.grid(row=1, column=1)
 
         # Create frame for the loot history bar graph
-        self.graph_frame = tk.Frame(self.image_frame)
-        self.graph_frame.grid(row=2, column=0, columnspan=2)
-        self.figure, self.ax = plt.subplots(figsize=(4, 3.2))
+        if INCLUDE_BLACKLIST_FEATURE:
+            self.graph_frame = tk.Frame(self.image_frame)
+            self.graph_frame.grid(row=2, column=0, columnspan=2)
+            self.figure, self.ax = plt.subplots(figsize=(4, 3.2))
 
-        self.figure.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.3)
+            self.figure.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.3)
 
-        # pack that graph
-        self.canvas = FigureCanvasTkAgg(self.figure, master=self.graph_frame)
-        self.canvas.get_tk_widget().pack()
+            # pack that graph
+            self.canvas = FigureCanvasTkAgg(self.figure, master=self.graph_frame)
+            self.canvas.get_tk_widget().pack()
 
         # Create stats table
         self.stats = {
@@ -99,10 +101,11 @@ class GUI:
         self.stop_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Create the "Open Blacklist Settings" button
-        self.blacklist_button = ttk.Button(
-            root, text="Blacklist Settings", command=self.open_blacklist_gui
-        )
-        self.blacklist_button.pack(side=tk.LEFT, padx=5, pady=5)
+        if INCLUDE_BLACKLIST_FEATURE:
+            self.blacklist_button = ttk.Button(
+                root, text="Blacklist Settings", command=self.open_blacklist_gui
+            )
+            self.blacklist_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bot = None  # Reference to the bot
 
@@ -127,6 +130,9 @@ class GUI:
 
     def update_loot_history(self, loot_history):
         """Update the loot history bar graph."""
+        if INCLUDE_BLACKLIST_FEATURE is False:
+            return True # Skip if the feature is disabled
+
         # Count occurrences of each fish
         fish_counts = {fish: loot_history.count(fish) for fish in set(loot_history)}
 
