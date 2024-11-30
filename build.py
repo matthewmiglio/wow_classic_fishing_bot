@@ -15,12 +15,15 @@ VERSION = "v0.0.0"
 # Collect files for inclusion
 files_to_include = []
 
-
-# Helper function to add all files from a directory
+# Helper function to add all files from a directory, excluding .png files
 def add_files_from_dir(dir_path, target_dir=""):
     if os.path.exists(dir_path):
         for folder_name, subfolders, filenames in os.walk(dir_path):
             for filename in filenames:
+                # Skip .png files
+                if filename.lower().endswith(".png"):
+                    continue
+
                 file_path = os.path.join(folder_name, filename)
                 # Calculate relative path to preserve directory structure in the build
                 relative_path = os.path.relpath(file_path, start=dir_path)
@@ -30,7 +33,6 @@ def add_files_from_dir(dir_path, target_dir=""):
                 )
     else:
         raise FileNotFoundError(f"Directory does not exist: {dir_path}")
-
 
 # Add files from model directories
 add_files_from_dir("inference/bobber_models", "inference/bobber_models")
@@ -61,7 +63,6 @@ bdist_msi_options = {
         "keywords": KEYWORDS,
     },
 }
-
 
 exe = Executable(
     script=ENTRY_POINT,
