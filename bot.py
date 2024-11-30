@@ -814,6 +814,17 @@ class LootClassifier:
         return False
 
     def collect_loot(self) -> bool:
+        def calc_loot_coord():
+            wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
+            coord = (wow_window.left + 44,wow_window.top + 204 )
+            return coord
+
+        def calc_close_loot_coord():
+            wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
+            coord = (wow_window.left + 156,wow_window.top + 139 )
+            return coord
+
+
         #if blacklist is off, we assume autoloot is on, so skip collect_loot()
         if INCLUDE_BLACKLIST_FEATURE is not True:
             return True
@@ -832,7 +843,7 @@ class LootClassifier:
         self.history.append(loot_classification)
 
         # if its blacklist loot, close the loot window to skip it
-        close_loot_coords = (1035, 110)
+        close_loot_coords = calc_close_loot_coord()
         if loot_classification in self.blacklist_loot:
             print(f"{loot_classification} is blacklisted! Skipping it...")
             pyautogui.click(*close_loot_coords, clicks=3, interval=0.5)
@@ -840,7 +851,7 @@ class LootClassifier:
         # else click the loot to collect it
         else:
             print(f"{loot_classification} is whitelisted! Collecting it...")
-            collect_loot_coords = (950, 160)
+            collect_loot_coords = calc_loot_coord()
             pyautogui.click(
                 *collect_loot_coords, button="right", clicks=3, interval=0.3
             )
@@ -990,5 +1001,3 @@ class LootClassifier:
 if __name__ == "__main__":
     run_bot_with_gui()
 
-    # lc = LootClassifier()
-    # print(lc.loot_window_exists())
