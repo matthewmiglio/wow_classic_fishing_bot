@@ -14,6 +14,7 @@ torch = "^2.5.0"
 opencv-python = "^4.10.0.84"
 matplotlib = "^3.9.2"
 scipy = "^1.14.1"
+cx-freeze = "^7.2.6"
 
 
 [build-system]
