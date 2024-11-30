@@ -15,7 +15,6 @@ from gui import GUI, GUI_WINDOW_NAME
 from image_rec import (
     classification_scorer,
     get_color_frequencies,
-    calculate_class_score,
 )
 
 START_FISHING_COORD = (930, 1400)
@@ -78,6 +77,15 @@ class WoWFishBot:
     CAST_TIMEOUT = 3  # s
 
     def __init__(self, gui, save_images=False):
+        print("Initializing WoWFishBot...")
+
+        # stats
+        self.casts = 0
+        self.reels = 0
+        self.time_of_last_reel = None
+        self.time_of_last_cast = None
+        self.time_running = 0
+
         # loot detection module
         self.loot_classifier = LootClassifier()
 
@@ -116,13 +124,6 @@ class WoWFishBot:
         # logger
         self.logger = Logger()
 
-        # stats
-        self.casts = 0
-        self.reels = 0
-        self.time_of_last_reel = None
-        self.time_of_last_cast = None
-        self.time_running = 0
-
         # prediction storage
         self.predictions = []  # used to store the last predictions
         self.splash_prediction_history_limit = 1000
@@ -134,20 +135,21 @@ class WoWFishBot:
 
     # prediction stuff
     def print_predictions(self):
-        def format_ts(this_ts,first_ts):
+        def format_ts(this_ts, first_ts):
             diff = this_ts - first_ts
-            integer,decimals= str(diff).split('.')
-            number = str(integer) + '.' + str(decimals)[:2]
+            integer, decimals = str(diff).split(".")
+            number = str(integer) + "." + str(decimals)[:2]
             return number
 
-        if len(self.predictions) == 0:return
+        if len(self.predictions) == 0:
+            return
         first_ts = self.predictions[0]["time"]
         for prediction in self.predictions:
             bobber_exists = str(prediction["bobber_exists"])
             bobber_position = str(prediction["bobber_position"])
             is_splash = str(prediction["is_splash"])
-            ts = (prediction["time"])
-            ts = format_ts(ts,first_ts)
+            ts = prediction["time"]
+            ts = format_ts(ts, first_ts)
             print(
                 "bobber?: {:^6} splash?: {:^6} {:^20} ts: {}".format(
                     bobber_exists, is_splash, bobber_position, ts
@@ -258,6 +260,60 @@ class WoWFishBot:
             )
             self.send_delayed_click(center_x, center_y, wait=1)
 
+    def send_delayed_click(self, x, y, wait):
+        def _to_wrap(x, y, wait):
+            time.sleep(wait)
+            pyautogui.click(x, y, button="right")
+
+        t = threading.Thread(target=_to_wrap, args=(x, y, wait))
+        t.start()
+
+    # window orientation stuff
+    def should_kill_orientation_threads(self) -> bool:
+        # if the bot has been running for less than 20 seconds, dont kill the gui yet
+        if self.time_running < 20:
+            return False
+
+        # if gui window is missing, we should kill things
+        try:
+            pygetwindow.getWindowsWithTitle(GUI_WINDOW_NAME)[0]
+        except:
+            return True
+
+        return False
+
+    def gui_orientation_thread(self):
+        def valid_position():
+            try:
+                window = pygetwindow.getWindowsWithTitle(GUI_WINDOW_NAME)[0]
+                if window.left == 0 and window.top == 0:
+                    return True
+            except:
+                return False
+            return False
+
+        def _to_wrap():
+            gui_window_name = GUI_WINDOW_NAME
+            while not self.should_kill_orientation_threads():
+                try:
+                    if not valid_position():
+                        window: pygetwindow.Window = pygetwindow.getWindowsWithTitle(
+                            gui_window_name
+                        )[0]
+                        window.moveTo(0, 0)
+                        print("Moved window!")
+                    else:
+                        time.sleep(2)
+                except Exception as e:
+                    print(f"Error moving window: {e}")
+                    time.sleep(3)
+                    pass
+
+        if self.gui is None:
+            return
+        t = threading.Thread(target=_to_wrap)
+        t.start()
+
     def wow_orientation_thread(self):
         def valid_position():
             position_tol = 3
@@ -302,34 +358,25 @@ class WoWFishBot:
                 pass
 
         def _to_wrap():
-            time.sleep(4)
-            while 1:
+            while not self.should_kill_orientation_threads():
                 try:
                     if not valid_size():
                         resize_wow()
-                        print("Moved window!")
+                        print("Moved wow window!")
                     elif not valid_position():
                         move_wow()
-                        print("Resized window!")
+                        print("Resized wow window!")
                     else:
                         time.sleep(2)
                 except Exception as e:
-                    print(f"Error moving window: {e}")
-                    time.sleep(10)
+                    print(f"Error moving wow window: {e}")
+                    time.sleep(3)
                     pass
 
         if self.gui is None:
             return
 
         t = threading.Thread(target=_to_wrap)
-        t.start()
-
-    def send_delayed_click(self, x, y, wait):
-        def _to_wrap(x, y, wait):
-            time.sleep(wait)
-            pyautogui.click(x, y, button="right")
-
-        t = threading.Thread(target=_to_wrap, args=(x, y, wait))
         t.start()
 
     # gui stuff
@@ -399,39 +446,6 @@ class WoWFishBot:
             self.reels += 1
             self.logger.add_to_fishing_log("success")
             self.update_gui("reels", self.reels)
-
-    def gui_orientation_thread(self):
-        def valid_position():
-            try:
-                window = pygetwindow.getWindowsWithTitle(GUI_WINDOW_NAME)[0]
-                if window.left == 0 and window.top == 0:
-                    return True
-            except:
-                return False
-            return False
-
-        def _to_wrap():
-            gui_window_name = GUI_WINDOW_NAME
-            time.sleep(4)
-            while 1:
-                try:
-                    if not valid_position():
-                        window: pygetwindow.Window = pygetwindow.getWindowsWithTitle(
-                            gui_window_name
-                        )[0]
-                        window.moveTo(0, 0)
-                        print("Moved window!")
-                    else:
-                        time.sleep(2)
-                except Exception as e:
-                    print(f"Error moving window: {e}")
-                    time.sleep(10)
-                    pass
-
-        if self.gui is None:
-            return
-        t = threading.Thread(target=_to_wrap)
-        t.start()
 
     def make_image(self, text):
         bg_color = 0
@@ -742,6 +756,7 @@ class WoWFishBot:
 
 class Logger:
     def __init__(self):
+        print("Initializing Logger...")
         self.logs_folder = r"logs"
         os.makedirs(self.logs_folder, exist_ok=True)
 
@@ -780,11 +795,11 @@ class Logger:
 
 
 class LootClassifier:
-
-    POSITIVE_DETECTION_THRESHOLD = 1
+    POSITIVE_DETECTION_THRESHOLD = 0.99
     # POSITIVE_DETECTION_THRESHOLD = 0.99
 
     def __init__(self):
+        print("Initializing LootClassifier...")
         self.blacklist_loot = []  # let gui set this
         self.history: list[str] = []
 
@@ -798,7 +813,6 @@ class LootClassifier:
         return False
 
     def collect_loot(self) -> bool:
-
         # wait for loot window to appear
         if self.wait_for_loot_window() is False:
             print("Loot window did not appear in time.")
@@ -829,6 +843,46 @@ class LootClassifier:
         return loot_classification
 
     def loot_window_exists(self):
+        # grab wow image
+        wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
+        wow_image_region = [
+            wow_window.left,
+            wow_window.top,
+            wow_window.width,
+            wow_window.height,
+        ]
+        wow_image = pyautogui.screenshot(region=wow_image_region)
+        wow_image = np.array(wow_image)
+
+        # plt.imshow(wow_image)
+        # plt.show()
+
+        pixels = [
+            wow_image[151][24],
+            wow_image[130][42],
+            wow_image[152][61],
+            wow_image[167][49],
+            wow_image[143][46],
+        ]
+        colors = ["black", "black", "black", "black", "white"]
+
+        def is_white(pixel):
+            return pixel[0] > 100 and pixel[1] > 100 and pixel[2] > 100
+
+        def is_black(pixel):
+            return pixel[0] < 50 and pixel[1] < 50 and pixel[2] < 50
+
+        for i, pixel in enumerate(pixels):
+            color = colors[i]
+            # print(pixel,color)
+            if color == "white" and not is_white(pixel):
+                return False
+            elif color == "black" and not is_black(pixel):
+                return False
+
+        return True
+
+    def loot_window_exists_old(self):
         image = np.asarray(pyautogui.screenshot())
         pixels = [
             image[112][938],
@@ -907,6 +961,22 @@ class LootClassifier:
         return (best_label, best_score)
 
     def get_loot_image(self) -> ndarray:
+        # grab wow image
+        wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
+        wow_image_region = [
+            wow_window.left,
+            wow_window.top,
+            wow_window.width,
+            wow_window.height,
+        ]
+        wow_image = pyautogui.screenshot(region=wow_image_region)
+        wow_image = np.array(wow_image)
+
+        # crop to the little loot image
+        loot_image = wow_image[192:218, 32:58]
+        return loot_image
+
+    def get_loot_image_old(self) -> ndarray:
         image = pyautogui.screenshot(region=[944, 147, 20, 20])
         image = np.array(image)
         return image
@@ -914,3 +984,6 @@ class LootClassifier:
 
 if __name__ == "__main__":
     run_bot_with_gui()
+
+    # lc = LootClassifier()
+    # print(lc.loot_window_exists())
