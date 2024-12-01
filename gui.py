@@ -124,6 +124,9 @@ class GUI:
             label.set_wrap(True)  # Enable text wrapping
 
         # Ensure x-axis labels don't overlap
+        # Get the current x-ticks and set the labels accordingly
+        xticks = self.ax.get_xticks()  # Get current x-tick positions
+        self.ax.set_xticks(xticks)  # Explicitly set the tick positions
         self.ax.set_xticklabels(
             self.ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
         )
