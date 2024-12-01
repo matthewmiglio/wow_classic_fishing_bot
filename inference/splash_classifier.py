@@ -1,3 +1,4 @@
+print("Initalizing splash classifier model...")
 import onnxruntime
 import cv2
 import numpy as np

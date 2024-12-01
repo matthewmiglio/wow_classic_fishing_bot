@@ -1,3 +1,4 @@
+print("Initalizing bobber detector model...")
 import torch
 import cv2
 import numpy as np
@@ -5,8 +6,7 @@ import onnxruntime
 
 
 class BobberDetector:
-    def __init__(self, model_path:str):
-        # model path expects a path to a .onnx file
+    def __init__(self, model_path: str):
         self.session = onnxruntime.InferenceSession(model_path)
 
     def non_max_suppression(self, prediction, conf_thres=0.25, iou_thres=0.45):
@@ -118,7 +118,3 @@ class BobberDetector:
 
         best_box = convertbbox2list(best_box)
         return best_box, max_score
-
-
-if __name__ == "__main__":
-    pass
