@@ -14,11 +14,13 @@ VERSION = "v0.0.0"
 
 # Collect files for inclusion
 files_to_include = []
+skip_folders = ['data_export',]
 
 # Helper function to add all files from a directory, excluding .png files
 def add_files_from_dir(dir_path, target_dir=""):
     if os.path.exists(dir_path):
         for folder_name, subfolders, filenames in os.walk(dir_path):
+            if folder_name in skip_folders: continue
             for filename in filenames:
                 # Skip .png files
                 if filename.lower().endswith(".png") or filename.lower().endswith(".txt"):
