@@ -1,3 +1,4 @@
+print("Starting python...")
 from PIL import Image
 import threading
 import pyautogui
@@ -9,6 +10,8 @@ import pygetwindow
 import os
 import tkinter as tk
 import cv2
+
+
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
 from gui import GUI, GUI_WINDOW_NAME
@@ -16,7 +19,13 @@ from image_rec import (
     classification_scorer,
     get_color_frequencies,
 )
-from _FEATURE_FLAGS import INCLUDE_BLACKLIST_FEATURE
+
+
+from _FEATURE_FLAGS import (
+    INCLUDE_BLACKLIST_FEATURE,
+    SAVE_IMAGES_FEATURE,
+    SAVE_LOGS_FEATURE,
+)
 
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
@@ -65,6 +74,7 @@ def xywy2xyxy(x, y, w, h):
 
 
 def run_bot_with_gui():
+    print("Initalizing bot and GUI...")
     bot_root = tk.Tk()
     bot_gui = GUI(bot_root)
     bot = WoWFishBot(bot_gui, save_images=True)
@@ -521,6 +531,9 @@ class WoWFishBot:
         t.start()
 
     def save_bobber_roi_image(self, img):
+        if SAVE_IMAGES_FEATURE is not True:
+            return
+
         uid = "roi_" + str(time.time()).replace(".", "") + ".png"
         path = os.path.join(self.save_images_dir, "bobber_roi", uid)
 
@@ -529,6 +542,9 @@ class WoWFishBot:
         self.save_image_to_save_images(path, img)
 
     def save_splash_images(self, bbox, img, is_splash) -> bool:
+        if SAVE_IMAGES_FEATURE is not True:
+            return
+
         uid = str(time.time()).replace(".", "") + ".png"
         path = os.path.join(
             self.save_images_dir,
@@ -545,6 +561,9 @@ class WoWFishBot:
         return True
 
     def save_image_to_save_images(self, path: str, image: Image.Image):
+        if SAVE_IMAGES_FEATURE is not True:
+            return
+
         # make the dir if it doesnt exist
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
@@ -759,15 +778,18 @@ class Logger:
     def __init__(self):
         print("Initializing Logger...")
         self.logs_folder = r"logs"
-        os.makedirs(self.logs_folder, exist_ok=True)
 
         self.fishing_attempts_log = os.path.join(
             self.logs_folder, "fishing_attempts.txt"
         )
         self.loot_log = os.path.join(self.logs_folder, "loot_log.txt")
-        self.init_logs()
+        self.init_log_files()
 
-    def init_logs(self):
+    def init_log_files(self):
+        if SAVE_LOGS_FEATURE is not True:
+            return
+        os.makedirs(self.logs_folder, exist_ok=True)
+
         if not os.path.exists(self.fishing_attempts_log):
             with open(self.fishing_attempts_log, "w") as f:
                 f.write("")
@@ -777,12 +799,15 @@ class Logger:
                 f.write("")
 
     def add_to_fishing_log(self, type: str):
-        # type should either be ['attempt','success']
+        if SAVE_LOGS_FEATURE is not True:
+            return
         with open(self.fishing_attempts_log, "a") as f:
             log_string = f"{time.time()} {type}\n"
             f.write(log_string)
 
     def add_to_loot_log(self, loot: str):
+        if SAVE_LOGS_FEATURE is not True:
+            return
         with open(self.loot_log, "a") as f:
             f.write(f"{time.time()} {loot}\n")
 
@@ -816,16 +841,15 @@ class LootClassifier:
     def collect_loot(self) -> bool:
         def calc_loot_coord():
             wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
-            coord = (wow_window.left + 44,wow_window.top + 204 )
+            coord = (wow_window.left + 44, wow_window.top + 204)
             return coord
 
         def calc_close_loot_coord():
             wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
-            coord = (wow_window.left + 156,wow_window.top + 139 )
+            coord = (wow_window.left + 156, wow_window.top + 139)
             return coord
 
-
-        #if blacklist is off, we assume autoloot is on, so skip collect_loot()
+        # if blacklist is off, we assume autoloot is on, so skip collect_loot()
         if INCLUDE_BLACKLIST_FEATURE is not True:
             return True
 
@@ -1000,4 +1024,3 @@ class LootClassifier:
 
 if __name__ == "__main__":
     run_bot_with_gui()
-
