@@ -21,7 +21,7 @@ def add_files_from_dir(dir_path, target_dir=""):
         for folder_name, subfolders, filenames in os.walk(dir_path):
             for filename in filenames:
                 # Skip .png files
-                if filename.lower().endswith(".png"):
+                if filename.lower().endswith(".png") or filename.lower().endswith(".txt"):
                     continue
 
                 file_path = os.path.join(folder_name, filename)
