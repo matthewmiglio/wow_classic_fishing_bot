@@ -95,6 +95,7 @@ class WoWFishBot:
         self.reels = 0
         self.time_of_last_reel = None
         self.time_of_last_cast = None
+        self.start_time=time.time()
         self.time_running = 0
 
         # loot detection module
@@ -280,15 +281,17 @@ class WoWFishBot:
         t.start()
 
     # window orientation stuff
-    def should_kill_orientation_threads(self) -> bool:
+    def should_background_threads(self) -> bool:
         # if the bot has been running for less than 20 seconds, dont kill the gui yet
-        if self.time_running < 20:
+        if time.time() - self.start_time < 10:
+            print(f'Time runnning is below 10 so skipping should kill check...')
             return False
 
         # if gui window is missing, we should kill things
         try:
             pygetwindow.getWindowsWithTitle(GUI_WINDOW_NAME)[0]
         except:
+            print(f'Failed to get GUI window with name {GUI_WINDOW_NAME}. Returning kill=True')
             return True
 
         return False
@@ -305,7 +308,8 @@ class WoWFishBot:
 
         def _to_wrap():
             gui_window_name = GUI_WINDOW_NAME
-            while not self.should_kill_orientation_threads():
+            while not self.should_background_threads():
+                print(f'Running gui_orientation_thread()')
                 try:
                     if not valid_position():
                         window: pygetwindow.Window = pygetwindow.getWindowsWithTitle(
@@ -314,16 +318,16 @@ class WoWFishBot:
                         window.moveTo(0, 0)
                         print("Moved window!")
                     else:
-                        time.sleep(2)
+                        self.background_thread_wait(5)
                 except Exception as e:
                     print(f"Error moving window: {e}")
-                    time.sleep(3)
-                    pass
+                    self.background_thread_wait(3)
 
         if self.gui is None:
             return
         t = threading.Thread(target=_to_wrap)
         t.start()
+
 
     def wow_orientation_thread(self):
         def valid_position():
@@ -369,7 +373,8 @@ class WoWFishBot:
                 pass
 
         def _to_wrap():
-            while not self.should_kill_orientation_threads():
+            while not self.should_background_threads():
+                print('Running wow_orientation_thread()')
                 try:
                     if not valid_size():
                         resize_wow()
@@ -378,11 +383,10 @@ class WoWFishBot:
                         move_wow()
                         print("Resized wow window!")
                     else:
-                        time.sleep(2)
+                        self.background_thread_wait(5)
                 except Exception as e:
                     print(f"Error moving wow window: {e}")
-                    time.sleep(3)
-                    pass
+                    self.background_thread_wait(3)
 
         if self.gui is None:
             return
@@ -498,6 +502,14 @@ class WoWFishBot:
         self.time_running += time_taken
         self.update_gui("runtime", format_timestamp(self.time_running))
 
+    def background_thread_wait(self, dur):
+        start_time = time.time()
+        while 1:
+            if time.time() - start_time > dur:return
+            if self.should_background_threads():return
+            time.sleep(1)
+
+
     # file stuff
     def start_file_clean_thread(self, top_dir, file_limit):
         def clean_excess_pngs():
@@ -522,10 +534,13 @@ class WoWFishBot:
                 if current_count <= file_limit:
                     continue
 
+
+
+
         def _to_wrap():
-            while 1:
+            while not self.should_background_threads():
                 clean_excess_pngs()
-                time.sleep(120)
+                self.background_thread_wait(120)
 
         t = threading.Thread(target=_to_wrap)
         t.start()
@@ -679,7 +694,8 @@ class WoWFishBot:
         self.running_event.set()  # Start the event
 
         # main loop
-        while self.running_event.is_set():
+        while not self.should_background_threads():
+            print('Running bot.run()')
 
             start_time = time.time()
             base_image = self.get_roi_image()
@@ -830,7 +846,7 @@ class LootClassifier:
         self.history: list[str] = []
 
     def wait_for_loot_window(self):
-        wait_timeout = 10  # s
+        wait_timeout = 3  # s
         wait_start_time = time.time()
         while time.time() - wait_start_time < wait_timeout:
             if self.loot_window_exists():
