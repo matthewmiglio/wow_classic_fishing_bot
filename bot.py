@@ -22,7 +22,7 @@ from image_rec import (
 
 
 from _FEATURE_FLAGS import (
-    INCLUDE_BLACKLIST_FEATURE,
+    BLACKLIST_FEATURE_FLAG,
     SAVE_IMAGES_FEATURE,
     SAVE_LOGS_FEATURE,
 )
@@ -98,8 +98,9 @@ class WoWFishBot:
         self.start_time = time.time()
         self.time_running = 0
 
-        # loot detection module
+        # loot stuff
         self.loot_classifier = LootClassifier()
+        self.ignore_blacklist = False
 
         # gui
         self.gui = gui
@@ -136,6 +137,9 @@ class WoWFishBot:
         # logger
         self.logger = Logger()
 
+        #printing
+        self.print_mode_enabled = False
+
         # prediction storage
         self.predictions = []  # used to store the last predictions
         self.splash_prediction_history_limit = 1000
@@ -152,6 +156,9 @@ class WoWFishBot:
             integer, decimals = str(diff).split(".")
             number = str(integer) + "." + str(decimals)[:2]
             return number
+
+        if self.print_mode_enabled is False:
+            return
 
         if len(self.predictions) == 0:
             return
@@ -685,6 +692,12 @@ class WoWFishBot:
 
     def run(self):
         self.running_event.set()  # Start the event
+        print(f'user just clicked run.\nThe blacklist enabled checkbox value is {self.gui.blacklist_mode_toggle_input.get()}')
+        if int(self.gui.blacklist_mode_toggle_input.get()) == 1:
+            self.ignore_blacklist = True
+        else:
+            self.ignore_blacklist = False
+        print(f'Thus, the ignore_blacklist value is {self.ignore_blacklist}')
 
         # main loop
         while (
@@ -744,6 +757,14 @@ class WoWFishBot:
                     self.click_bobber_bbox(bbox)
 
                     self.set_blacklist()
+
+                    # if blacklist feature is off,  or untoggled by user
+                    # we assume autoloot is on, so skip collect_loot()
+                    if BLACKLIST_FEATURE_FLAG is not True or self.ignore_blacklist is True:
+                        print('Skipping loot collection step because BLACKLIST_FEATURE_FLAG={BLACKLIST_FEATURE_FLAG} and WoWFishBot.ignore_blacklist={WoWFishBot.ignore_blacklist}')
+                        continue
+
+
                     loot = self.loot_classifier.collect_loot()
                     if loot:
                         self.logger.add_to_loot_log(loot)
@@ -858,9 +879,7 @@ class LootClassifier:
             coord = (wow_window.left + 156, wow_window.top + 139)
             return coord
 
-        # if blacklist is off, we assume autoloot is on, so skip collect_loot()
-        if INCLUDE_BLACKLIST_FEATURE is not True:
-            return True
+
 
         # wait for loot window to appear
         if self.wait_for_loot_window() is False:
