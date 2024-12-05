@@ -687,7 +687,9 @@ class WoWFishBot:
         self.running_event.set()  # Start the event
 
         # main loop
-        while self.running_event.is_set() and not self.should_clear_background_threads():
+        while (
+            self.running_event.is_set() and not self.should_clear_background_threads()
+        ):
             start_time = time.time()
             base_image = self.get_roi_image()
 
