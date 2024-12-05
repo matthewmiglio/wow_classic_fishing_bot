@@ -95,7 +95,7 @@ class WoWFishBot:
         self.reels = 0
         self.time_of_last_reel = None
         self.time_of_last_cast = None
-        self.start_time=time.time()
+        self.start_time = time.time()
         self.time_running = 0
 
         # loot detection module
@@ -281,17 +281,15 @@ class WoWFishBot:
         t.start()
 
     # window orientation stuff
-    def should_background_threads(self) -> bool:
+    def should_clear_background_threads(self) -> bool:
         # if the bot has been running for less than 20 seconds, dont kill the gui yet
         if time.time() - self.start_time < 10:
-            print(f'Time runnning is below 10 so skipping should kill check...')
             return False
 
         # if gui window is missing, we should kill things
         try:
             pygetwindow.getWindowsWithTitle(GUI_WINDOW_NAME)[0]
         except:
-            print(f'Failed to get GUI window with name {GUI_WINDOW_NAME}. Returning kill=True')
             return True
 
         return False
@@ -308,8 +306,7 @@ class WoWFishBot:
 
         def _to_wrap():
             gui_window_name = GUI_WINDOW_NAME
-            while not self.should_background_threads():
-                print(f'Running gui_orientation_thread()')
+            while not self.should_clear_background_threads():
                 try:
                     if not valid_position():
                         window: pygetwindow.Window = pygetwindow.getWindowsWithTitle(
@@ -327,7 +324,6 @@ class WoWFishBot:
             return
         t = threading.Thread(target=_to_wrap)
         t.start()
-
 
     def wow_orientation_thread(self):
         def valid_position():
@@ -373,8 +369,7 @@ class WoWFishBot:
                 pass
 
         def _to_wrap():
-            while not self.should_background_threads():
-                print('Running wow_orientation_thread()')
+            while not self.should_clear_background_threads():
                 try:
                     if not valid_size():
                         resize_wow()
@@ -505,10 +500,11 @@ class WoWFishBot:
     def background_thread_wait(self, dur):
         start_time = time.time()
         while 1:
-            if time.time() - start_time > dur:return
-            if self.should_background_threads():return
+            if time.time() - start_time > dur:
+                return
+            if self.should_clear_background_threads():
+                return
             time.sleep(1)
-
 
     # file stuff
     def start_file_clean_thread(self, top_dir, file_limit):
@@ -534,11 +530,8 @@ class WoWFishBot:
                 if current_count <= file_limit:
                     continue
 
-
-
-
         def _to_wrap():
-            while not self.should_background_threads():
+            while not self.should_clear_background_threads():
                 clean_excess_pngs()
                 self.background_thread_wait(120)
 
@@ -694,9 +687,7 @@ class WoWFishBot:
         self.running_event.set()  # Start the event
 
         # main loop
-        while not self.should_background_threads():
-            print('Running bot.run()')
-
+        while self.running_event.is_set() and not self.should_clear_background_threads():
             start_time = time.time()
             base_image = self.get_roi_image()
 
