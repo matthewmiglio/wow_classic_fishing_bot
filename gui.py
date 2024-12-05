@@ -7,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from loot_constants import BLACKLIST_STRINGS
-from _FEATURE_FLAGS import INCLUDE_BLACKLIST_FEATURE
+from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG
 
 
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
@@ -42,7 +42,7 @@ class GUI:
         self.bobber_image_display.grid(row=1, column=1)
 
         # Create frame for the loot history bar graph
-        if INCLUDE_BLACKLIST_FEATURE:
+        if BLACKLIST_FEATURE_FLAG:
             self.graph_frame = tk.Frame(self.image_frame)
             self.graph_frame.grid(row=2, column=0, columnspan=2)
             self.figure, self.ax = plt.subplots(figsize=(4, 3.2))
@@ -101,11 +101,18 @@ class GUI:
         self.stop_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Create the "Open Blacklist Settings" button
-        if INCLUDE_BLACKLIST_FEATURE:
+        self.blacklist_mode_toggle_input = tk.IntVar()
+        if BLACKLIST_FEATURE_FLAG:
             self.blacklist_button = ttk.Button(
                 root, text="Blacklist Settings", command=self.open_blacklist_gui
             )
             self.blacklist_button.pack(side=tk.LEFT, padx=5, pady=5)
+            self.disable_blacklist_checkbox = ttk.Checkbutton(
+                root, text="Disable Blacklist", variable=self.blacklist_mode_toggle_input
+            )
+            # self.blacklist_mode_toggle_input = tk.IntVar()
+            self.blacklist_mode_toggle_input.set(0)
+            self.disable_blacklist_checkbox.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bot = None  # Reference to the bot
 
@@ -133,7 +140,7 @@ class GUI:
 
     def update_loot_history(self, loot_history):
         """Update the loot history bar graph."""
-        if INCLUDE_BLACKLIST_FEATURE is False:
+        if BLACKLIST_FEATURE_FLAG is False:
             return True # Skip if the feature is disabled
 
         # Count occurrences of each fish
