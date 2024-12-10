@@ -137,7 +137,7 @@ class WoWFishBot:
         # logger
         self.logger = Logger()
 
-        #printing
+        # printing
         self.print_mode_enabled = False
 
         # prediction storage
@@ -692,12 +692,14 @@ class WoWFishBot:
 
     def run(self):
         self.running_event.set()  # Start the event
-        print(f'user just clicked run.\nThe blacklist enabled checkbox value is {self.gui.blacklist_mode_toggle_input.get()}')
+        print(
+            f"user just clicked run.\nThe blacklist enabled checkbox value is {self.gui.blacklist_mode_toggle_input.get()}"
+        )
         if int(self.gui.blacklist_mode_toggle_input.get()) == 1:
             self.ignore_blacklist = True
         else:
             self.ignore_blacklist = False
-        print(f'Thus, the ignore_blacklist value is {self.ignore_blacklist}')
+        print(f"Thus, the ignore_blacklist value is {self.ignore_blacklist}")
 
         # main loop
         while (
@@ -760,10 +762,14 @@ class WoWFishBot:
 
                     # if blacklist feature is off,  or untoggled by user
                     # we assume autoloot is on, so skip collect_loot()
-                    if BLACKLIST_FEATURE_FLAG is not True or self.ignore_blacklist is True:
-                        print('Skipping loot collection step because BLACKLIST_FEATURE_FLAG={BLACKLIST_FEATURE_FLAG} and WoWFishBot.ignore_blacklist={WoWFishBot.ignore_blacklist}')
+                    if (
+                        BLACKLIST_FEATURE_FLAG is not True
+                        or self.ignore_blacklist is True
+                    ):
+                        print(
+                            "Skipping loot collection step because BLACKLIST_FEATURE_FLAG={BLACKLIST_FEATURE_FLAG} and WoWFishBot.ignore_blacklist={WoWFishBot.ignore_blacklist}"
+                        )
                         continue
-
 
                     loot = self.loot_classifier.collect_loot()
                     if loot:
@@ -878,8 +884,6 @@ class LootClassifier:
             wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
             coord = (wow_window.left + 156, wow_window.top + 139)
             return coord
-
-
 
         # wait for loot window to appear
         if self.wait_for_loot_window() is False:
