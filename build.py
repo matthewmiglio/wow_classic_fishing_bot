@@ -1,6 +1,5 @@
 import os
 from cx_Freeze import Executable, setup
-import sys
 
 PROJECT_NAME = "Matt's WoW Fish Bot"
 AUTHOR = "Matthew Miglio"
