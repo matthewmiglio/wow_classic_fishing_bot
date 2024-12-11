@@ -15,7 +15,7 @@ class Versioning:
                 return version_index
         except:
             with open(self.version_file_path,'w') as f:
-                f.write(self.default_version)
+                f.write(str(self.default_version))
                 return self.default_version
 
         self.increment_version()
