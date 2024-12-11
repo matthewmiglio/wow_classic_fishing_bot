@@ -30,7 +30,7 @@ from _FEATURE_FLAGS import (
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
 DISPLAY_IMAGE_SIZE = 200
-WOW_CLIENT_RESIZE = (1000, 700)
+WOW_CLIENT_RESIZE = (800, 600)
 WOW_WINDOW_NAME = "World of Warcraft"
 TOP_SAVE_DIR = "save_images"
 
@@ -103,16 +103,18 @@ class WoWFishBot:
         self.ignore_blacklist = False
 
         # gui
-        self.gui = gui
         self.running_event = threading.Event()  # Control the bot running state
-        self.gui_orientation_thread()
-        self.gui.update_image(
-            self.make_image("  Waiting for start..."), "bobber"
-        )  # TODO idfk why its different
-        self.update_gui(
-            "raw_image",
-            self.make_image("  Waiting for start..."),
-        )  # TODO idfk why its different
+        self.gui = gui
+
+        if self.gui is not None:
+            self.gui_orientation_thread()
+            self.gui.update_image(
+                self.make_image("  Waiting for start..."), "bobber"
+            )  # TODO idfk why its different
+            self.update_gui(
+                "raw_image",
+                self.make_image("  Waiting for start..."),
+            )  # TODO idfk why its different
         self.update_loot_history_stats()
 
         # wow client
@@ -334,43 +336,30 @@ class WoWFishBot:
 
     def wow_orientation_thread(self):
         def valid_position():
-            position_tol = 3
-            screen_dims = pyautogui.size()
-            left = screen_dims[0] - WOW_CLIENT_RESIZE[0]
             try:
+                screen_dims = pyautogui.size()
                 window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
-                if (
-                    abs(window.left - left) < position_tol
-                    and abs(window.top - 0) < position_tol
-                ):
-                    return True
+                valid_left_position = screen_dims[0] - 815
+                if abs(window.left - valid_left_position) > 0:
+                    print(
+                        f"This window's horizontal position is incorrect. Expected: {valid_left_position} real {window.left}"
+                    )
+                    return False
+                if window.top != 0:
+                    print(
+                        f"This window's vertical position is incorrect. Expected: {0} real {window.top}"
+                    )
+                    return False
             except:
-                return False
+                return True
 
-        def valid_size():
-            tol = 5
-            try:
-                window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
-                if (
-                    abs(window.width - WOW_CLIENT_RESIZE[0]) < tol
-                    and abs(window.height - WOW_CLIENT_RESIZE[1]) < tol
-                ):
-                    return True
-            except:
-                return False
-
-        def resize_wow():
-            try:
-                window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
-                window.resizeTo(WOW_CLIENT_RESIZE[0], WOW_CLIENT_RESIZE[1])
-            except:
-                pass
+            return True
 
         def move_wow():
             try:
                 window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
                 screen_dims = pyautogui.size()
-                left = screen_dims[0] - WOW_CLIENT_RESIZE[0]
+                left = screen_dims[0] - WOW_CLIENT_RESIZE[0] - 15
                 window.moveTo(left, 0)
             except:
                 pass
@@ -378,10 +367,10 @@ class WoWFishBot:
         def _to_wrap():
             while not self.should_clear_background_threads():
                 try:
-                    if not valid_size():
-                        resize_wow()
-                        print("Moved wow window!")
-                    elif not valid_position():
+                    # if not valid_size():
+                    #     resize_wow()
+                    #     print("Moved wow window!")
+                    if not valid_position():
                         move_wow()
                         print("Resized wow window!")
                     else:
@@ -438,6 +427,9 @@ class WoWFishBot:
                 l.append("Example Fish #3")
 
             return l
+
+        if self.gui is None:
+            return
 
         loot_history = (
             self.loot_classifier.history
@@ -877,12 +869,12 @@ class LootClassifier:
     def collect_loot(self) -> bool:
         def calc_loot_coord():
             wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
-            coord = (wow_window.left + 44, wow_window.top + 204)
+            coord = (wow_window.left + 44, wow_window.top + 196)
             return coord
 
         def calc_close_loot_coord():
             wow_window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
-            coord = (wow_window.left + 156, wow_window.top + 139)
+            coord = (wow_window.left + 144, wow_window.top + 129)
             return coord
 
         # wait for loot window to appear
@@ -894,7 +886,8 @@ class LootClassifier:
         loot_classification, score = self.classify_loot()
         if score < self.POSITIVE_DETECTION_THRESHOLD:
             print("This is a low score. is this a new loot type?")
-            loot_classification = f"unknown_{score}_" + loot_classification
+            # loot_classification = f"unknown_{score}_" + loot_classification
+            loot_classification = f'unknown_fish_{random.randint(100,999)}'
 
         self.history.append(loot_classification)
 
@@ -926,17 +919,23 @@ class LootClassifier:
         wow_image = pyautogui.screenshot(region=wow_image_region)
         wow_image = np.array(wow_image)
 
-        # plt.imshow(wow_image)
-        # plt.show()
 
         pixels = [
-            wow_image[151][24],
-            wow_image[130][42],
-            wow_image[152][61],
-            wow_image[167][49],
-            wow_image[143][46],
+            wow_image[138][23],
+            wow_image[121][38],
+            wow_image[139][56],
+            wow_image[155][45],
+            wow_image[132][34],
+            wow_image[156][36],
         ]
-        colors = ["black", "black", "black", "black", "white"]
+        colors = [
+            "black",
+            "black",
+            "black",
+            "black",
+            "white",
+            "white",
+         ]
 
         def is_white(pixel):
             return pixel[0] > 100 and pixel[1] > 100 and pixel[2] > 100
@@ -1044,8 +1043,11 @@ class LootClassifier:
         wow_image = pyautogui.screenshot(region=wow_image_region)
         wow_image = np.array(wow_image)
 
+        # plt.imshow(wow_image)
+        # plt.show()
+
         # crop to the little loot image
-        loot_image = wow_image[192:218, 32:58]
+        loot_image = wow_image[175:203, 28:55]
         return loot_image
 
     def get_loot_image_old(self) -> ndarray:
@@ -1056,3 +1058,11 @@ class LootClassifier:
 
 if __name__ == "__main__":
     run_bot_with_gui()
+
+
+
+
+
+
+
+
