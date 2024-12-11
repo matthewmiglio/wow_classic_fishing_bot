@@ -1,7 +1,34 @@
 import os
+import datetime
 from cx_Freeze import Executable, setup
 
-PROJECT_NAME = "Matt's WoW Fish Bot"
+
+class Versioning:
+    def __init__(self):
+        self.version_file_path = 'version.txt'
+        self.default_version = 10
+
+    def get_version(self):
+        try:
+            with open(self.version_file_path,'r') as f:
+                version_index= int(f.read().strip())
+                return version_index
+        except:
+            with open(self.version_file_path,'w') as f:
+                f.write(self.default_version)
+                return self.default_version
+
+        self.increment_version()
+
+    def increment_version(self):
+        version_index = self.get_version()
+        with open(self.version_file_path,'w') as f:
+            f.write(str(version_index+1))
+        return version_index+1
+
+
+versioning = Versioning()
+PROJECT_NAME = f"Matt's WoW Fish Bot {datetime.datetime.now().strftime('%Y-%m-%d')}"
 AUTHOR = "Matthew Miglio"
 DESCRIPTION = "Automated WoW Fishing Bot"
 KEYWORDS = "World of Warcraft Classic, Fishing, Bot"
@@ -9,20 +36,30 @@ COPYRIGHT = "2024 Matthew Miglio"
 ENTRY_POINT = "bot.py"
 GUI = False
 UPGRADE_CODE = "{3f9f4225-8af4-4024-97fd-9a2329638315}"
-VERSION = "v0.0.0"
+VERSION = f"v0.0.{versioning.get_version()}"
 
 # Collect files for inclusion
 files_to_include = []
-skip_folders = ['data_export',]
+skip_folders = [
+    "data_export",
+]
+
+
+
+
+
 
 # Helper function to add all files from a directory, excluding .png files
 def add_files_from_dir(dir_path, target_dir=""):
     if os.path.exists(dir_path):
         for folder_name, subfolders, filenames in os.walk(dir_path):
-            if folder_name in skip_folders: continue
+            if folder_name in skip_folders:
+                continue
             for filename in filenames:
                 # Skip .png files
-                if filename.lower().endswith(".png") or filename.lower().endswith(".txt"):
+                if filename.lower().endswith(".png") or filename.lower().endswith(
+                    ".txt"
+                ):
                     continue
 
                 file_path = os.path.join(folder_name, filename)
@@ -34,6 +71,7 @@ def add_files_from_dir(dir_path, target_dir=""):
                 )
     else:
         raise FileNotFoundError(f"Directory does not exist: {dir_path}")
+
 
 # Add files from model directories
 add_files_from_dir("inference/bobber_models", "inference/bobber_models")
