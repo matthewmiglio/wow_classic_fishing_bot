@@ -367,9 +367,6 @@ class WoWFishBot:
         def _to_wrap():
             while not self.should_clear_background_threads():
                 try:
-                    # if not valid_size():
-                    #     resize_wow()
-                    #     print("Moved wow window!")
                     if not valid_position():
                         move_wow()
                         print("Resized wow window!")
