@@ -28,7 +28,8 @@ class Versioning:
 
 
 versioning = Versioning()
-PROJECT_NAME = f"Matt's WoW Fish Bot {datetime.datetime.now().strftime('%Y-%m-%d')}"
+this_version_index = versioning.get_version()
+PROJECT_NAME = f"MattFishBot {datetime.datetime.now().strftime('%Y-%m-%d')} {this_version_index}"
 AUTHOR = "Matthew Miglio"
 DESCRIPTION = "Automated WoW Fishing Bot"
 KEYWORDS = "World of Warcraft Classic, Fishing, Bot"
@@ -36,7 +37,7 @@ COPYRIGHT = "2024 Matthew Miglio"
 ENTRY_POINT = "bot.py"
 GUI = False
 UPGRADE_CODE = "{3f9f4225-8af4-4024-97fd-9a2329638315}"
-VERSION = f"v0.0.{versioning.get_version()}"
+VERSION = f"v0.0.{this_version_index}"
 
 # Collect files for inclusion
 files_to_include = []
