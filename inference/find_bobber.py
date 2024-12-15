@@ -50,11 +50,21 @@ class BobberDetector:
 
     def run_detection(self, img, conf_thres=0.25, iou_thres=0.45):
         # Load and preprocess image
+        if type(img) is not np.ndarray:
+            print(f'BobberDetector.run_detection() expects img to be of type np.ndarray, but got {type(img)}')
+            return [], []
+        if img.shape[0] != img.shape[1] or img.shape[2] != 3:
+            print(f'BobberDetector.run_detection() expects img to be of shape (x, x, 3), but got {img.shape}')
+            print('Make sure the image is square and has 3 channels')
+            return [], []
+
+        img_size = img.shape[0]
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
         img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
         img = np.transpose(img, (2, 0, 1)).reshape(
-            1, 3, 256, 256
-        )  # Convert to [1, 3, 256, 256]
+            1, 3, img_size, img_size
+        )  # Convert to [1, 3, img_size, img_size]
 
         # Inference
         pred = self.session.run(None, {self.session.get_inputs()[0].name: img})
