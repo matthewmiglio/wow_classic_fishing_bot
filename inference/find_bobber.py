@@ -51,8 +51,6 @@ class BobberDetector:
     def run_detection(self, img, conf_thres=0.25, iou_thres=0.45):
         # Load and preprocess image
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # img = img[100:900, 700:1300]
-        # img = cv2.resize(img, (256, 256))  # Resize to 256x256
         img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
         img = np.transpose(img, (2, 0, 1)).reshape(
             1, 3, 256, 256
@@ -102,7 +100,6 @@ class BobberDetector:
     def detect_object_in_image(self, img, draw_result=False):
         boxes, scores = self.run_detection(img, conf_thres=0.25, iou_thres=0.45)
         if len(boxes) == 0:
-
             return [], 0
         scores = np.array(scores)
         max_score = np.max(scores)
