@@ -1,31 +1,26 @@
 print("Starting python...")
-from PIL import Image
-import threading
-import pyautogui
-import numpy as np
-from numpy import ndarray
-import random
-import time
-import pygetwindow
 import os
+import random
+import threading
+import time
 import tkinter as tk
+
 import cv2
-
-
-from inference.find_bobber import BobberDetector
-from inference.splash_classifier import SplashClassifier
-from gui import GUI, GUI_WINDOW_NAME
-from image_rec import (
-    classification_scorer,
-    get_color_frequencies,
-)
-
+import numpy as np
+import pyautogui
+import pygetwindow
+from numpy import ndarray
+from PIL import Image
 
 from _FEATURE_FLAGS import (
     BLACKLIST_FEATURE_FLAG,
     SAVE_IMAGES_FEATURE,
     SAVE_LOGS_FEATURE,
 )
+from gui import GUI, GUI_WINDOW_NAME
+from image_rec import classification_scorer, get_color_frequencies
+from inference.find_bobber import BobberDetector
+from inference.splash_classifier import SplashClassifier
 
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
@@ -69,7 +64,7 @@ def numpy_img_bgr_to_rgb(img):
     return img
 
 
-def xywy2xyxy(x, y, w, h):
+def xywh2xyxy(x, y, w, h):
     return x - w // 2, y - h // 2, x + w // 2, y + h // 2
 
 
@@ -83,9 +78,9 @@ def run_bot_with_gui():
 
 
 class WoWFishBot:
-    # MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.25
-    MIN_CONFIDENCE_FOR_BOBBER_DETECTION = 0.05
-    CAST_TIMEOUT = 3  # s
+    MIN_CONFIDENCE_FOR_BOBBER_DETECTION = -1 #determined in the bobber model's non max suppression
+    CAST_TIMEOUT = 7  # s
+    BOBBER_ROI_IMAGE_RESIZE = 640
 
     def __init__(self, gui, save_images=False):
         print("Initializing WoWFishBot...")
@@ -122,11 +117,11 @@ class WoWFishBot:
 
         # ai models
         self.bobber_detector = BobberDetector(
-            r"inference\bobber_models\bobber_finder5.0.onnx"
+            r"inference\bobber_models\bobber_finder7.0.onnx"
         )
         self.splash_classifier = SplashClassifier(
             r"inference\splash_models\splash_classifier4.0.onnx"
-        )  # test this. otherwise use 1.0
+        )
 
         # saving images
         self.save_splash_images_toggle = save_images
@@ -149,7 +144,6 @@ class WoWFishBot:
         # vars related to dynamic roi image
         self.dynamic_image_topleft = (0, 0)
         self.dynamic_image_crop_region = (0, 0, 0, 0)  # x1,y1,x2,y2
-        self.stretched_size = (256, 256)
 
     # prediction stuff
     def print_predictions(self):
@@ -271,13 +265,14 @@ class WoWFishBot:
         self.logger.add_to_fishing_log("attempt")
 
     def click_bobber_bbox(self, bbox):
+        random_deviation = 10
         x1, y1, x2, y2 = bbox
         for _ in range(5):
             center_x = int((x1 + x2) / 2) + (
-                random.choice([-1, 1]) * random.randint(0, 10)
+                random.choice([-1, 1]) * random.randint(0, random_deviation)
             )
             center_y = int((y1 + y2) / 2) + (
-                random.choice([-1, 1]) * random.randint(0, 10)
+                random.choice([-1, 1]) * random.randint(0, random_deviation)
             )
             self.send_delayed_click(center_x, center_y, wait=1)
 
@@ -329,6 +324,8 @@ class WoWFishBot:
                     print(f"Error moving window: {e}")
                     self.background_thread_wait(3)
 
+            print("Exiting gui_orientation_thread()")
+
         if self.gui is None:
             return
         t = threading.Thread(target=_to_wrap)
@@ -376,6 +373,8 @@ class WoWFishBot:
                     print(f"Error moving wow window: {e}")
                     self.background_thread_wait(3)
 
+            print("Exiting wow_orientation_thread()")
+
         if self.gui is None:
             return
 
@@ -416,11 +415,11 @@ class WoWFishBot:
     def update_loot_history_stats(self):
         def example_loot_history():
             l = []
-            for _ in range(random.randint(1, 10)):
+            for _ in range(random.randint(0, 30)):
                 l.append("Example Fish #1")
-            for _ in range(random.randint(1, 10)):
+            for _ in range(random.randint(30, 70)):
                 l.append("Example Fish #2")
-            for _ in range(random.randint(1, 10)):
+            for _ in range(random.randint(70, 99)):
                 l.append("Example Fish #3")
 
             return l
@@ -530,6 +529,7 @@ class WoWFishBot:
             while not self.should_clear_background_threads():
                 clean_excess_pngs()
                 self.background_thread_wait(120)
+            print("Exiting file_clean_thread()")
 
         t = threading.Thread(target=_to_wrap)
         t.start()
@@ -559,7 +559,7 @@ class WoWFishBot:
         # convert it from BGR to RGB
         img = numpy_img_bgr_to_rgb(img)
         img = Image.fromarray(img)
-        bbox = xywy2xyxy(*bbox)
+        bbox = xywh2xyxy(*bbox)
         img = img.crop(bbox)
         self.save_image_to_save_images(path, img)
         return True
@@ -609,7 +609,7 @@ class WoWFishBot:
         self.dynamic_image_crop_region = this_crop
 
         # crop the image
-        wow_image = wow_image.crop(this_crop).resize((256, 256))
+        wow_image = wow_image.crop(this_crop).resize((640, 640))
 
         # convert to numpy array
         wow_image = np.array(wow_image)
@@ -625,18 +625,17 @@ class WoWFishBot:
         bbox_image = img[y1:y2, x1:x2]
         return bbox_image
 
-    def convert_bbox_to_usable(self, bbox):
-        # Extract the bounding box components
-        center_x, center_y, width, height = bbox
-
+    def convert_bbox_to_usable(self, xywh_bbox):
         # Step 1: Unstretch the bounding box
         # Convert the center back to the crop coordinates
-        scale_x = self.stretched_size[0] / (
+        scale_x = self.BOBBER_ROI_IMAGE_RESIZE / (
             self.dynamic_image_crop_region[2] - self.dynamic_image_crop_region[0]
         )
-        scale_y = self.stretched_size[1] / (
+        scale_y = self.BOBBER_ROI_IMAGE_RESIZE / (
             self.dynamic_image_crop_region[3] - self.dynamic_image_crop_region[1]
         )
+
+        center_x, center_y, width, height = xywh_bbox
 
         # Convert to crop coordinates
         crop_center_x = center_x / scale_x
@@ -707,7 +706,9 @@ class WoWFishBot:
             )
 
             # if a bobber detected
-            if score > self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION:
+            print(f"This score is {score}")
+            print(f"this bbox is {bbox}")
+            if score >= self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION and bbox != []:
                 # get the image of the bobber based on the bbox we infered
                 bobber_image = self.make_bobber_image(bbox, base_image)
                 self.update_gui("bobber_image", bobber_image)
@@ -746,7 +747,6 @@ class WoWFishBot:
                     self.add_reel()
                     bbox = self.convert_bbox_to_usable(bbox)
                     self.click_bobber_bbox(bbox)
-
                     self.set_blacklist()
 
                     # if blacklist feature is off,  or untoggled by user
@@ -790,13 +790,13 @@ class WoWFishBot:
                         print("-" * 50 + "\n" + "Starting fishing...")
                         self.start_fishing()
                         self.time_of_last_cast = time.time()
-                        self.predictions = (
-                            []
-                        )  # clear the predictions for new fishing session
+                        self.predictions = []  # clear the predictions for new fishing session
                     else:
                         print("Bobber not found, but just casted...")
 
             self.add_time_taken(time.time() - start_time)
+
+        print("Exiting wfb.run()")
 
 
 class Logger:
@@ -884,7 +884,7 @@ class LootClassifier:
         if score < self.POSITIVE_DETECTION_THRESHOLD:
             print("This is a low score. is this a new loot type?")
             # loot_classification = f"unknown_{score}_" + loot_classification
-            loot_classification = f'unknown_fish_{random.randint(100,999)}'
+            loot_classification = f"unknown_fish_{random.randint(100,999)}"
 
         self.history.append(loot_classification)
 
@@ -916,7 +916,6 @@ class LootClassifier:
         wow_image = pyautogui.screenshot(region=wow_image_region)
         wow_image = np.array(wow_image)
 
-
         pixels = [
             wow_image[138][23],
             wow_image[121][38],
@@ -932,7 +931,7 @@ class LootClassifier:
             "black",
             "white",
             "white",
-         ]
+        ]
 
         def is_white(pixel):
             return pixel[0] > 100 and pixel[1] > 100 and pixel[2] > 100
@@ -998,7 +997,6 @@ class LootClassifier:
         image.save(this_image_file_path)
 
     def classify_loot(self):
-
         def loot_colors_to_printable(loot_colors):
             # get a list of values
             loot_colors = list(loot_colors.values())
@@ -1056,10 +1054,5 @@ class LootClassifier:
 if __name__ == "__main__":
     run_bot_with_gui()
 
-
-
-
-
-
-
-
+    # wfb = WoWFishBot(None, save_images=False)
+    # roi = wfb.get_roi_image()
