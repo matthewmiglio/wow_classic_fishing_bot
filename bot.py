@@ -78,7 +78,9 @@ def run_bot_with_gui():
 
 
 class WoWFishBot:
-    MIN_CONFIDENCE_FOR_BOBBER_DETECTION = -1 #determined in the bobber model's non max suppression
+    MIN_CONFIDENCE_FOR_BOBBER_DETECTION = (
+        -1
+    )  # determined in the bobber model's non max suppression
     CAST_TIMEOUT = 7  # s
     BOBBER_ROI_IMAGE_RESIZE = 640
 
@@ -706,8 +708,6 @@ class WoWFishBot:
             )
 
             # if a bobber detected
-            print(f"This score is {score}")
-            print(f"this bbox is {bbox}")
             if score >= self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION and bbox != []:
                 # get the image of the bobber based on the bbox we infered
                 bobber_image = self.make_bobber_image(bbox, base_image)
@@ -723,7 +723,7 @@ class WoWFishBot:
                 is_splash = self.splash_classifier.run(bobber_image, draw_result=False)
                 is_splash = self.splash_classifier.postprocess(is_splash)
 
-                # show the result in the gui
+                # show the result in the guiz
                 self.update_gui("bobber_detected", "Yes")
                 self.update_gui("splash_detected", is_splash)
 
