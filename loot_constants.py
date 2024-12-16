@@ -139,7 +139,7 @@ LOOT_COLOR_DATA = {
         (0, 128, 128): 0,
         (0, 0, 0): 234,
     },
-    "Raw Rainbow\nFin Albacore": {
+    "Raw Rainbow Fin Albacore": {
         (255, 0, 0): 0,
         (0, 255, 0): 0,
         (0, 0, 255): 0,
@@ -167,7 +167,7 @@ LOOT_COLOR_DATA = {
         (0, 128, 128): 134,
         (0, 0, 0): 334,
     },
-    "Lesser Mana\nPotion": {
+    "Lesser Mana Potion": {
         (255, 0, 0): 0,
         (0, 255, 0): 0,
         (0, 0, 255): 0,
@@ -181,7 +181,7 @@ LOOT_COLOR_DATA = {
         (0, 128, 128): 61,
         (0, 0, 0): 542,
     },
-    "Raw Longjaw\nMud Snapper": {
+    "Raw Longjaw Mud Snapper": {
         (255, 0, 0): 0,
         (0, 255, 0): 0,
         (0, 0, 255): 0,
@@ -195,7 +195,7 @@ LOOT_COLOR_DATA = {
         (0, 128, 128): 103,
         (0, 0, 0): 344,
     },
-    "Raw Rockscale\nCod": {
+    "Raw Rockscale Cod": {
         (255, 0, 0): 3,
         (0, 255, 0): 2,
         (0, 0, 255): 0,
@@ -209,7 +209,7 @@ LOOT_COLOR_DATA = {
         (0, 128, 128): 54,
         (0, 0, 0): 307,
     },
-    "Raw Brilliant\nSmallfish": {
+    "Raw Brilliant Smallfish": {
         (255, 0, 0): 0,
         (0, 255, 0): 0,
         (0, 0, 255): 0,
@@ -223,7 +223,7 @@ LOOT_COLOR_DATA = {
         (0, 128, 128): 44,
         (0, 0, 0): 285,
     },
-    "Raw Spotted\nYellowtail": {
+    "Raw Spotted Yellowtail": {
         (255, 0, 0): 0,
         (0, 255, 0): 0,
         (0, 0, 255): 0,
@@ -265,7 +265,7 @@ LOOT_COLOR_DATA = {
         (0, 128, 128): 0,
         (0, 0, 0): 316,
     },
-    "Firefin OR\nDeviate": {
+    "Firefin OR Deviate": {
         (255, 0, 0): 22,
         (0, 255, 0): 0,
         (0, 0, 255): 27,
