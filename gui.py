@@ -1,49 +1,79 @@
+import os
+import random
+import threading
 import tkinter as tk
 from tkinter import ttk
-import threading
-from PIL import Image, ImageTk
-import numpy as np
-import os
+
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from loot_constants import BLACKLIST_STRINGS
-from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG
+from PIL import Image, ImageTk
 
+from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG
+from colors import gui_colors, rainbow_colors
+from loot_constants import BLACKLIST_STRINGS
 
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
-GUI_SIZE = "450x720"
+GUI_SIZE = "450x750"
 
 
 class GUI:
     def __init__(self, root):
-        print('Initializing GUI...')
+        print("Initializing GUI...")
+
+        self.fish_colors = {}
+
+        # save settings location
+        self.save_settings_path = r"settings.txt"
+        if not os.path.exists(self.save_settings_path):
+            with open(self.save_settings_path, "w") as f:
+                f.write("")
+
+        # gui stuff
         self.root = root
         self.root.geometry(GUI_SIZE)
         self.root.title(GUI_WINDOW_NAME)
 
+        self.root.configure(bg=gui_colors["darkmode_background_1"])
+
         # Create frames for images and stats
-        self.image_frame = tk.Frame(root)
+        self.image_frame = tk.Frame(root, bg=gui_colors["darkmode_background_1"])
         self.image_frame.pack(side=tk.TOP, padx=10, pady=10)
 
-        self.stats_frame = tk.Frame(root)
+        self.stats_frame = tk.Frame(root, bg=gui_colors["darkmode_background_1"])
         self.stats_frame.pack(side=tk.TOP, padx=10, pady=10)
 
         # Create labels for images
-        self.raw_image_label = tk.Label(self.image_frame, text="Raw Image")
+        self.raw_image_label = tk.Label(
+            self.image_frame,
+            text="Raw Image",
+            bg=gui_colors["darkmode_background_1"],
+            fg=gui_colors["darkmode_foreground_1"],
+        )
         self.raw_image_label.grid(row=0, column=0)
 
-        self.bobber_image_label = tk.Label(self.image_frame, text="Bobber Image")
+        self.bobber_image_label = tk.Label(
+            self.image_frame,
+            text="Bobber Image",
+            bg=gui_colors["darkmode_background_1"],
+            fg=gui_colors["darkmode_foreground_1"],
+        )
         self.bobber_image_label.grid(row=0, column=1)
 
-        self.raw_image_display = tk.Label(self.image_frame)
+        self.raw_image_display = tk.Label(
+            self.image_frame, bg=gui_colors["darkmode_background_1"]
+        )
         self.raw_image_display.grid(row=1, column=0)
 
-        self.bobber_image_display = tk.Label(self.image_frame)
+        self.bobber_image_display = tk.Label(
+            self.image_frame, bg=gui_colors["darkmode_background_1"]
+        )
         self.bobber_image_display.grid(row=1, column=1)
 
         # Create frame for the loot history bar graph
         if BLACKLIST_FEATURE_FLAG:
-            self.graph_frame = tk.Frame(self.image_frame)
+            self.graph_frame = tk.Frame(
+                self.image_frame, bg=gui_colors["darkmode_background_1"]
+            )
             self.graph_frame.grid(row=2, column=0, columnspan=2)
             self.figure, self.ax = plt.subplots(figsize=(4, 3.2))
 
@@ -59,58 +89,126 @@ class GUI:
             "splash_detected": tk.StringVar(value="No"),
             "casts": tk.StringVar(value=0),
             "reels": tk.StringVar(value=0),
+            "loots": tk.StringVar(value=0),
             "runtime": tk.StringVar(value=0),
         }
 
-        ttk.Label(self.stats_frame, text="Bobber Detected").grid(row=0, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["bobber_detected"]).grid(
-            row=0, column=1
-        )
+        ttk.Label(
+            self.stats_frame,
+            text="Bobber Detected",
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=0, column=0)
+        ttk.Label(
+            self.stats_frame,
+            textvariable=self.stats["bobber_detected"],
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=0, column=1)
 
-        ttk.Label(self.stats_frame, text="Splash Detected").grid(row=1, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["splash_detected"]).grid(
-            row=1, column=1
-        )
+        ttk.Label(
+            self.stats_frame,
+            text="Splash Detected",
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=1, column=0)
+        ttk.Label(
+            self.stats_frame,
+            textvariable=self.stats["splash_detected"],
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=1, column=1)
 
-        ttk.Label(self.stats_frame, text="Casts").grid(row=2, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["casts"]).grid(
-            row=2, column=1
-        )
+        ttk.Label(
+            self.stats_frame,
+            text="Casts",
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=2, column=0)
+        ttk.Label(
+            self.stats_frame,
+            textvariable=self.stats["casts"],
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=2, column=1)
 
-        ttk.Label(self.stats_frame, text="Reels").grid(row=3, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["reels"]).grid(
-            row=3, column=1
-        )
+        ttk.Label(
+            self.stats_frame,
+            text="Reels",
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=3, column=0)
+        ttk.Label(
+            self.stats_frame,
+            textvariable=self.stats["reels"],
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=3, column=1)
 
-        ttk.Label(self.stats_frame, text="Runtime").grid(row=4, column=0)
-        ttk.Label(self.stats_frame, textvariable=self.stats["runtime"]).grid(
-            row=4, column=1
-        )
+        ttk.Label(
+            self.stats_frame,
+            text="Loots",
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=4, column=0)
+        ttk.Label(
+            self.stats_frame,
+            textvariable=self.stats["loots"],
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=4, column=1)
 
-        # save settings location
-        self.save_settings_path = r"settings.txt"
-        if not os.path.exists(self.save_settings_path):
-            with open(self.save_settings_path, "w") as f:
-                f.write("")
+        ttk.Label(
+            self.stats_frame,
+            text="Runtime",
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=5, column=0)
+        ttk.Label(
+            self.stats_frame,
+            textvariable=self.stats["runtime"],
+            background=gui_colors["darkmode_background_1"],
+            foreground=gui_colors["darkmode_foreground_1"],
+        ).grid(row=5, column=1)
 
         # Create Start and Stop buttons
-        self.start_button = ttk.Button(root, text="Start", command=self.start_bot)
+        self.start_button = ttk.Button(
+            root, text="Start", command=self.start_bot, style="Start.TButton"
+        )
         self.start_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-        self.stop_button = ttk.Button(root, text="Stop", command=self.stop_bot)
+        self.stop_button = ttk.Button(
+            root, text="Stop", command=self.stop_bot, style="Stop.TButton"
+        )
         self.stop_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Create the "Open Blacklist Settings" button
         self.blacklist_mode_toggle_input = tk.IntVar()
         if BLACKLIST_FEATURE_FLAG:
             self.blacklist_button = ttk.Button(
-                root, text="Blacklist Settings", command=self.open_blacklist_gui
+                root,
+                text="Blacklist Settings",
+                command=self.open_blacklist_gui,
+                style="Edit_Blacklist.TButton",
             )
             self.blacklist_button.pack(side=tk.LEFT, padx=5, pady=5)
-            self.disable_blacklist_checkbox = ttk.Checkbutton(
-                root, text="Disable Blacklist", variable=self.blacklist_mode_toggle_input
+
+            # Define a style for the Checkbutton
+            style = ttk.Style()
+            style.configure(
+                "TCheckbutton",
+                background=gui_colors["darkmode_background_1"],
+                foreground=gui_colors["darkmode_foreground_1"],
             )
-            # self.blacklist_mode_toggle_input = tk.IntVar()
+            style.configure("Start.TButton", background="green", foreground="green")
+            style.configure("Stop.TButton", background="red", foreground="red")
+
+            self.disable_blacklist_checkbox = ttk.Checkbutton(
+                root,
+                text="Disable Blacklist",
+                variable=self.blacklist_mode_toggle_input,
+                style="TCheckbutton",
+            )
             self.blacklist_mode_toggle_input.set(0)
             self.disable_blacklist_checkbox.pack(side=tk.LEFT, padx=5, pady=5)
 
@@ -118,8 +216,21 @@ class GUI:
 
     def configure_graph(self):
         """Configure the aesthetics and settings of the graph."""
-        self.ax.set_title("Seen Fish")
-        self.ax.set_ylabel("#")
+        # Set the figure background color
+        self.figure.patch.set_facecolor(gui_colors["darkmode_background_1"])
+
+        # Set the axes (graph area) background color
+        self.ax.set_facecolor(gui_colors["darkmode_middle_ground_1"])
+
+        # Set the title and y-label text color
+        self.ax.set_title("Seen Fish", color=gui_colors["darkmode_foreground_1"])
+        self.ax.set_ylabel("#", color=gui_colors["darkmode_foreground_1"])
+
+        # Set y-axis tick label color
+        self.ax.tick_params(axis="y", labelcolor=gui_colors["darkmode_foreground_1"])
+
+        # Set x-axis tick label color
+        self.ax.tick_params(axis="x", labelcolor=gui_colors["darkmode_foreground_1"])
 
         # Set up y-axis formatting
         self.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x)}"))
@@ -135,13 +246,17 @@ class GUI:
         xticks = self.ax.get_xticks()  # Get current x-tick positions
         self.ax.set_xticks(xticks)  # Explicitly set the tick positions
         self.ax.set_xticklabels(
-            self.ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
+            self.ax.get_xticklabels(),
+            rotation=45,
+            ha="right",
+            rotation_mode="anchor",
+            color=gui_colors["darkmode_foreground_1"],
         )
 
     def update_loot_history(self, loot_history):
         """Update the loot history bar graph."""
         if BLACKLIST_FEATURE_FLAG is False:
-            return True # Skip if the feature is disabled
+            return True  # Skip if the feature is disabled
 
         # Count occurrences of each fish
         fish_counts = {fish: loot_history.count(fish) for fish in set(loot_history)}
@@ -152,14 +267,34 @@ class GUI:
         # Apply graph configuration
         self.configure_graph()
 
-        # Plot the new data
-        bars = self.ax.bar(fish_counts.keys(), fish_counts.values())
+        # Loop through fish counts and assign a color to each bar
+        # colors = []
+        # for i, fish in enumerate(fish_counts):
+        #     colors.append(rainbow_colors[i % len(rainbow_colors)])
+
+
+        bar_colors = []
+        for fish_name in fish_counts.keys():
+            if fish_name not in self.fish_colors.keys():
+                this_random_bar_color = random.choice(rainbow_colors)
+                self.fish_colors[fish_name]=this_random_bar_color
+
+            bar_colors.append(self.fish_colors[fish_name])
+
+
+        # Plot the new data with assigned colors
+        bars = self.ax.bar(fish_counts.keys(), fish_counts.values(), color=bar_colors)
 
         # Set x-ticks to be at the center of each bar (this is important if you have non-numeric categories)
         self.ax.set_xticks([bar.get_x() + bar.get_width() / 2 for bar in bars])
 
-        # Set x-tick labels to the fish names
-        self.ax.set_xticklabels(fish_counts.keys(), rotation=45, ha="right")
+        # Set x-tick labels to the fish names with color set to darkmode_foreground_1
+        self.ax.set_xticklabels(
+            fish_counts.keys(),
+            rotation=45,
+            ha="right",
+            color=gui_colors["darkmode_foreground_1"],
+        )
 
         # Redraw the canvas
         self.canvas.draw()
