@@ -122,7 +122,7 @@ class WoWFishBot:
             r"inference\bobber_models\bobber_finder7.0.onnx"
         )
         self.splash_classifier = SplashClassifier(
-            r"inference\splash_models\splash_classifier4.0.onnx"
+            r"inference\splash_models\splash_classifier6.0.onnx"
         )
 
         # saving images
@@ -395,36 +395,39 @@ class WoWFishBot:
                 self.gui.update_image(value, "raw")
             except:
                 pass
-        if stat == "bobber_image":
+        elif stat == "bobber_image":
             try:
                 value = cv2.resize(value, (DISPLAY_IMAGE_SIZE, DISPLAY_IMAGE_SIZE))
                 self.gui.update_image(value, "bobber")
             except:
                 pass
-        if stat == "bobber_detected":
+        elif stat == "bobber_detected":
             self.gui.update_stat("bobber_detected", value)
-        if stat == "splash_detected":
+        elif stat == "splash_detected":
             self.gui.update_stat(
                 "splash_detected", "Yes" if "splash" in value else "No"
             )
-        if stat == "casts":
+        elif stat == "casts":
             self.gui.update_stat("casts", value)
-        if stat == "reels":
+        elif stat == "reels":
             self.gui.update_stat("reels", value)
-        if stat == "runtime":
+        elif stat == "runtime":
             self.gui.update_stat("runtime", value)
+        elif stat == "loots":
+            self.gui.update_stat("loots", value)
 
     def update_loot_history_stats(self):
         def example_loot_history():
-            l = []
-            for _ in range(random.randint(0, 30)):
-                l.append("Example Fish #1")
-            for _ in range(random.randint(30, 70)):
-                l.append("Example Fish #2")
-            for _ in range(random.randint(70, 99)):
-                l.append("Example Fish #3")
+            example_loot_list = []
+            number_of_example_fish = 10
+            random_counts = sorted(
+                [random.randint(0, 100) for _ in range(number_of_example_fish)]
+            )
+            for example_fish_index in range(number_of_example_fish):
+                for _ in range(random_counts[example_fish_index]):
+                    example_loot_list.append(f"Example Fish #{example_fish_index}")
 
-            return l
+            return example_loot_list
 
         if self.gui is None:
             return
@@ -435,7 +438,7 @@ class WoWFishBot:
             else example_loot_history()
         )
 
-        self.gui.update_loot_history(loot_history)
+        self.gui.update_loot_history((loot_history))
 
     def add_reel(self):
         def should_add_reel():
@@ -756,12 +759,15 @@ class WoWFishBot:
                         or self.ignore_blacklist is True
                     ):
                         print(
-                            "Skipping loot collection step because BLACKLIST_FEATURE_FLAG={BLACKLIST_FEATURE_FLAG} and WoWFishBot.ignore_blacklist={WoWFishBot.ignore_blacklist}"
+                            f"Skipping loot collection step because BLACKLIST_FEATURE_FLAG={BLACKLIST_FEATURE_FLAG} and WoWFishBot.ignore_blacklist={WoWFishBot.ignore_blacklist}"
                         )
                         continue
 
                     loot = self.loot_classifier.collect_loot()
                     if loot:
+                        self.update_gui(
+                            stat="loots", value=len(self.loot_classifier.history)
+                        )
                         self.logger.add_to_loot_log(loot)
                         self.update_loot_history_stats()
 
@@ -803,7 +809,6 @@ class Logger:
     def __init__(self):
         print("Initializing Logger...")
         self.logs_folder = r"logs"
-
         self.fishing_attempts_log = os.path.join(
             self.logs_folder, "fishing_attempts.txt"
         )
@@ -847,7 +852,6 @@ class Logger:
 
 class LootClassifier:
     POSITIVE_DETECTION_THRESHOLD = 0.99
-    # POSITIVE_DETECTION_THRESHOLD = 0.99
 
     def __init__(self):
         print("Initializing LootClassifier...")
