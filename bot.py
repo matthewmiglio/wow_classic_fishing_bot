@@ -1,5 +1,6 @@
 print("Starting python...")
 import os
+import json
 import random
 import threading
 import time
@@ -18,6 +19,7 @@ from _FEATURE_FLAGS import (
     SAVE_LOGS_FEATURE,
 )
 from gui import GUI, GUI_WINDOW_NAME
+from debug import collect_all_system_info, get_folder_size
 from image_rec import classification_scorer, get_color_frequencies
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
@@ -360,10 +362,20 @@ class WoWFishBot:
                 screen_dims = pyautogui.size()
                 left = screen_dims[0] - WOW_CLIENT_RESIZE[0] - 15
                 window.moveTo(left, 0)
+                foreground_wow()
+            except:
+                pass
+
+        def foreground_wow():
+            try:
+                window = pygetwindow.getWindowsWithTitle(WOW_WINDOW_NAME)[0]
+                window.activate()
             except:
                 pass
 
         def _to_wrap():
+            foreground_wow()
+
             while not self.should_clear_background_threads():
                 try:
                     if not valid_position():
@@ -371,6 +383,7 @@ class WoWFishBot:
                         print("Resized wow window!")
                     else:
                         self.background_thread_wait(5)
+                        foreground_wow()
                 except Exception as e:
                     print(f"Error moving wow window: {e}")
                     self.background_thread_wait(3)
@@ -682,6 +695,149 @@ class WoWFishBot:
     # bot stuff
     def stop(self):
         self.running_event.clear()  # Stop the bot
+
+    def run_debug_mode(self):
+        def make_uid():
+            return str(time.time()).replace(".", "") + random.choice(
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            )
+
+        # get appdata dir
+        appdata_dir = os.getenv("APPDATA")
+        date_readable = time.strftime("%Y_%m_%d_%H_%M_%S")
+        self.debug_data_export_folder = os.path.join(
+            appdata_dir, "WoWFishBot", "debug", date_readable + random.choice('ABCDEF')
+        )
+        os.makedirs(self.debug_data_export_folder, exist_ok=True)
+        os.makedirs(os.path.join(self.debug_data_export_folder,'predictions'), exist_ok=True)
+
+
+
+        # write system info as a json
+        system_info = collect_all_system_info()
+        system_info_export_path = os.path.join(
+            self.debug_data_export_folder, "system_info.txt"
+        )
+        with open(system_info_export_path, "w") as f:
+            f.write(system_info)
+
+        #stats
+        valid_predicts = 0
+        invalid_predicts = 0
+
+        # for 10 seconds, test the bot, saving related info
+        start_time = time.time()
+        debug_duration = 30  # s
+        casts = 0
+        cast_every=10#s
+        print("Running debug mode for {debug_duration} seconds...")
+        while time.time() - start_time < debug_duration:
+            #print
+            time_left = int(debug_duration - (time.time() - start_time))
+            print(F'DEBUG MODE: {time_left}s until complete...')
+
+            #handle casting logic
+            time_of_next_cast = casts* cast_every
+            time_taken = time.time() - start_time
+            if time_taken > time_of_next_cast:
+                self.start_fishing()
+                casts += 1
+                time.sleep(3)
+
+            this_uid = make_uid()
+
+
+            #grab a raw image of the entire desktop
+            screen_image_start_time = time.time()
+            screen_image = pyautogui.screenshot()
+            screen_image = np.array(screen_image)
+            screen_image_save_path = os.path.join(
+                self.debug_data_export_folder,
+                "predictions",
+                this_uid + "_screen_image" + ".png",
+                )
+            cv2.imwrite(screen_image_save_path, screen_image)
+            screen_image_time_taken =round(( time.time() - screen_image_start_time),2)
+            print(F'Took {screen_image_time_taken}s to grab a screen image of size {screen_image.shape} to {screen_image_save_path}')
+
+
+            #grab roi image, save it
+            roi_image_start_time = time.time()
+            roi_image = self.get_roi_image()
+            roi_image_save_path = os.path.join(
+                self.debug_data_export_folder,
+                "predictions",
+                this_uid + "_roi_image" + ".png",
+            )
+            cv2.imwrite(roi_image_save_path, roi_image)
+            roi_image_time_taken =round(( time.time() - roi_image_start_time),2)
+            print(F'Took {roi_image_time_taken}s to grab a roi image of size {roi_image.shape} to {roi_image_save_path}')
+
+            #predict, write prediction
+            prediction_start_time = time.time()
+            bbox, score = self.bobber_detector.detect_object_in_image(
+                roi_image, draw_result=False
+            )
+            annotation_line = f"{time.time()} {bbox} {score}"
+            annotation_file_path = os.path.join(
+                self.debug_data_export_folder,
+                "predictions",
+                this_uid + "_prediction" + ".txt",
+            )
+            with open(annotation_file_path, "w") as f:
+                f.write(annotation_line)
+            prediction_time_taken = round((time.time() - prediction_start_time),2)
+            print(F'Took {prediction_time_taken}s to predict {annotation_line} and write it to {annotation_file_path}')
+
+            #save bobber image and prediction if its good
+            if bbox != []:
+                bobber_image_start_time = time.time()
+                bobber_image = self.make_bobber_image(bbox, roi_image)
+                bobber_image_save_path = os.path.join(
+                    self.debug_data_export_folder,
+                    "predictions",
+                    this_uid + "_bobber_image" + ".png",
+                )
+                cv2.imwrite(bobber_image_save_path, bobber_image)
+                valid_predicts += 1
+                bobber_image_time_taken = round((time.time() - bobber_image_start_time),2)
+                print(F'Took {bobber_image_time_taken}s to save a bobber image of size {bobber_image.shape} to {bobber_image_save_path}')
+            else:
+                invalid_predicts += 1
+
+            #save the whole wow image
+            wow_image_start_time = time.time()
+            wow_image = self.get_wow_image()
+            wow_image_save_path = os.path.join(
+                self.debug_data_export_folder, "wow", make_uid() + ".png"
+            )
+            cv2.imwrite(wow_image_save_path, wow_image)
+            wow_image_time_taken = round((time.time() - wow_image_start_time),2)
+            print(F'Took {wow_image_time_taken}s to save a wow image of size {wow_image.shape} to {wow_image_save_path}')
+
+        # save the results
+        total_predicts = valid_predicts + invalid_predicts
+        valid_percent = round((valid_predicts / total_predicts) * 100, 2)
+        invalid_percent = round((invalid_predicts / total_predicts) * 100, 2)
+        results_string = f'total casts {casts}'
+        results_string += f'\ntotal predictions {total_predicts}'
+        results_string += f'\nvalid predictions {valid_predicts}'
+        results_string += f'\nvalid percent {valid_percent}'
+        results_string += f'\ninvalid predictions {invalid_predicts}'
+        results_string += f'\ninvalid percent {invalid_percent}'
+        results_string += f'\nduration {debug_duration}'
+        results_save_path = os.path.join(self.debug_data_export_folder, "results.txt")
+        with open(results_save_path, "w") as f:
+            f.write(results_string)
+
+
+
+
+
+
+        print(
+            f"Created a debug folder of size {get_folder_size(self.debug_data_export_folder)} at {self.debug_data_export_folder}"
+        )
 
     def run(self):
         self.running_event.set()  # Start the event
