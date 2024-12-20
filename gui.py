@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 
-from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG
+from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG, DEBUG_BUTTON_VISIBLE
 from colors import gui_colors, rainbow_colors
 from loot_constants import BLACKLIST_STRINGS
 
@@ -175,12 +175,27 @@ class GUI:
         self.start_button = ttk.Button(
             root, text="Start", command=self.start_bot, style="Start.TButton"
         )
-        self.start_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.start_button.pack(side=tk.LEFT, padx=0, pady=5)
 
+        #stop button
         self.stop_button = ttk.Button(
             root, text="Stop", command=self.stop_bot, style="Stop.TButton"
         )
-        self.stop_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.stop_button.pack(side=tk.LEFT, padx=0, pady=5)
+
+        #debug button
+        if DEBUG_BUTTON_VISIBLE is True:
+            self.debug_button = ttk.Button(
+                root, text="Debug", command=self.start_debug_mode, style="Start_debug.TButton"
+            )
+            self.debug_button.pack(side=tk.LEFT, padx=0, pady=5)
+
+        #styling for buttons
+        style = ttk.Style()
+        style.configure("Start.TButton", background="green", foreground="green")
+        style.configure("Stop.TButton", background="red", foreground="red")
+        style.configure("Edit_Blacklist.TButton", background="black", foreground="black")
+        if DEBUG_BUTTON_VISIBLE is True: style.configure("Start_debug.TButton", background="blue", foreground="blue")
 
         # Create the "Open Blacklist Settings" button
         self.blacklist_mode_toggle_input = tk.IntVar()
@@ -191,17 +206,15 @@ class GUI:
                 command=self.open_blacklist_gui,
                 style="Edit_Blacklist.TButton",
             )
-            self.blacklist_button.pack(side=tk.LEFT, padx=5, pady=5)
+            self.blacklist_button.pack(side=tk.LEFT, padx=0, pady=5)
 
             # Define a style for the Checkbutton
-            style = ttk.Style()
             style.configure(
                 "TCheckbutton",
                 background=gui_colors["darkmode_background_1"],
                 foreground=gui_colors["darkmode_foreground_1"],
             )
-            style.configure("Start.TButton", background="green", foreground="green")
-            style.configure("Stop.TButton", background="red", foreground="red")
+
 
             self.disable_blacklist_checkbox = ttk.Checkbutton(
                 root,
@@ -312,8 +325,21 @@ class GUI:
             bot_thread = threading.Thread(target=self.bot.run, daemon=True)
             bot_thread.start()  # Start the bot in a separate thread
 
+    def start_debug_mode(self):
+        """Start the bot in debug mode."""
+        if self.bot:
+            self.bot.running_event.set()
+            bot_thread = threading.Thread(target=self.bot.run_debug_mode, daemon=True)
+            bot_thread.start()
+
+    def stop_debug_mode(self):
+        """Stop the bot in debug mode."""
+        if self.bot:
+            self.bot.running_event.clear()
+
     def stop_bot(self):
         """Stop the bot."""
+        self.stop_debug_mode()
         if self.bot:
             self.bot.stop()  # Signal to stop running
 
