@@ -5,35 +5,60 @@ from cx_Freeze import Executable, setup
 
 class Versioning:
     def __init__(self):
-        self.version_file_path = 'version.txt'
+        self.version_file_path = "version.txt"
         self.default_version = 10
 
     def read_version(self):
         try:
-            with open(self.version_file_path,'r') as f:
-                version_index= int(f.read().strip())
+            with open(self.version_file_path, "r") as f:
+                version_index = int(f.read().strip())
                 return version_index
         except:
-            with open(self.version_file_path,'w') as f:
+            with open(self.version_file_path, "w") as f:
                 f.write(str(self.default_version))
                 return self.default_version
 
     def get_version(self):
-        v= self.read_version()
+        v = self.read_version()
         self.increment_version()
         return v
 
-
     def increment_version(self):
         version_index = self.read_version()
-        with open(self.version_file_path,'w') as f:
-            f.write(str(version_index+1))
-        return version_index+1
+        with open(self.version_file_path, "w") as f:
+            f.write(str(version_index + 1))
+        return version_index + 1
 
 
+def get_include_files(top_dir, skip_folders, skip_file_types):
+    file_paths = []
+
+    for root, dirs, files in os.walk(top_dir):
+        # Skip directories listed in skip_folders
+        dirs[:] = [d for d in dirs if d not in skip_folders]
+
+        for file in files:
+            # Skip files with extensions listed in skip_file_types
+            if any(file.endswith(ext) for ext in skip_file_types):
+                continue
+
+            # If not skipped, add the file path to the list
+            file_path = os.path.join(root, file)
+            file_paths.append(file_path)
+
+    return file_paths
 
 
+def get_most_recent_onnx_files():
+    bobber_models_folder = os.path.join(os.getcwd(), 'inference', 'bobber_models')
+    splash_models_folder = os.path.join(os.getcwd(), 'inference', 'splash_models')
 
+    most_recent_bobber_model_path=os.path.join(bobber_models_folder,os.listdir(bobber_models_folder)[-1])
+
+    most_recent_splash_model_path=os.path.join(splash_models_folder,os.listdir(splash_models_folder)[-1])
+
+
+    return [most_recent_bobber_model_path,most_recent_splash_model_path]
 
 def main():
     versioning = Versioning()
@@ -49,56 +74,44 @@ def main():
     VERSION = f"v0.0.{this_version_index}"
 
     # Collect files for inclusion
-    files_to_include = []
 
-    def add_files_from_dir(dir_path, target_dir=""):
-        skip_folders = [
-            "data_export",
-        ]
+    skip_file_types = [
+        ".txt",
+        ".png",
+        ".jpg",
+        ".ipynb",
+        ".md",
+        ".pyc",
+        ".msi",
+        ".gitignore",
+        ".lock",
+        ".toml",
+        ".onnx",
+    ]
 
-        if os.path.exists(dir_path):
-            for folder_name, subfolders, filenames in os.walk(dir_path):
-                if folder_name in skip_folders:
-                    continue
-                for filename in filenames:
-                    # Skip .png files
-                    if filename.lower().endswith(".png") or filename.lower().endswith(
-                        ".txt"
-                    ):
-                        continue
+    skip_folders = [
+        "data_export",
+        "build",
+        ".git",
+    ]
 
-                    file_path = os.path.join(folder_name, filename)
-                    # Calculate relative path to preserve directory structure in the build
-                    relative_path = os.path.relpath(file_path, start=dir_path)
-                    # Include the file and maintain its structure
-                    files_to_include.append(
-                        (file_path, os.path.join(target_dir, relative_path))
-                    )
-        else:
-            raise FileNotFoundError(f"Directory does not exist: {dir_path}")
+    skip_files = [
+        "build.py",
+    ]
 
+    files_to_include = [
+        path
+        for path in get_include_files(
+            top_dir=os.getcwd(),
+            skip_folders=skip_folders,
+            skip_file_types=skip_file_types,
+        )
+        if os.path.basename(path) not in skip_files
+    ] + get_most_recent_onnx_files()
 
-
-
-
-
-
-    # Add files from model directories
-    add_files_from_dir("inference/bobber_models", "inference/bobber_models")
-    add_files_from_dir("inference/splash_models", "inference/splash_models")
-    add_files_from_dir("data_export", "data_export")
-    add_files_from_dir("logs", "logs")
-    add_files_from_dir("save_images", "save_images")
-
-    # Verify the files (check that the files actually exist)
-    for file, _ in files_to_include:
-        if not os.path.isfile(file):
-            raise FileNotFoundError(f"An included file is missing: {file}")
-
-    # Build executable options
     build_exe_options = {
         "excludes": ["test", "setuptools"],
-        "include_files": files_to_include,  # Include all the files in the build
+        "include_files": files_to_include,
         "include_msvcr": True,
     }
 
@@ -112,6 +125,27 @@ def main():
             "keywords": KEYWORDS,
         },
     }
+
+    print("\nThese are the files_to_include")
+    for f in files_to_include:
+        print(f"\t{f}")
+
+    print("\nThese are the build exe options")
+    for k, v in build_exe_options.items():
+        if k == "include_files":
+            continue
+        print(f"\t{k}: {v}")
+
+    print("\nThese are the bdist_msi options")
+    for k, v in bdist_msi_options.items():
+        if k == "include_files":
+            continue
+        if k == "summary_data":
+            print(f"\t{k}:")
+            for k2, v2 in v.items():
+                print(f"\t  {k2}: {v2}")
+        else:
+            print(f"\t{k}: {v}")
 
     exe = Executable(
         script=ENTRY_POINT,
@@ -136,5 +170,3 @@ def main():
 
 main()
 # poetry run python build.py bdist_msi
-
-
