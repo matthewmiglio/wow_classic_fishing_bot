@@ -3,6 +3,7 @@ import platform
 import psutil
 import screeninfo
 import ctypes
+import zipfile
 
 def get_system_info():
     return {
@@ -124,6 +125,8 @@ def get_folder_size(folder_path):
         return f"{size_in_gb:.2f} GB"
     else:
         return f"{size_in_mb:.2f} MB"
+
+
 
 
 

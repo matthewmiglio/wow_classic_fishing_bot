@@ -1,6 +1,5 @@
 print("Starting python...")
 import os
-import json
 import random
 import threading
 import time
@@ -18,8 +17,8 @@ from _FEATURE_FLAGS import (
     SAVE_IMAGES_FEATURE,
     SAVE_LOGS_FEATURE,
 )
-from gui import GUI, GUI_WINDOW_NAME
 from debug import collect_all_system_info, get_folder_size
+from gui import GUI, GUI_WINDOW_NAME
 from image_rec import classification_scorer, get_color_frequencies
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
@@ -30,6 +29,62 @@ DISPLAY_IMAGE_SIZE = 200
 WOW_CLIENT_RESIZE = (800, 600)
 WOW_WINDOW_NAME = "World of Warcraft"
 TOP_SAVE_DIR = "save_images"
+
+
+def show_popup(display_text, title_text):
+    window_width = 150
+    text_wrap_len = window_width - 20
+    line_count = 1 + (len(display_text) // text_wrap_len)
+    window_height = 90 + (line_count * 20)
+
+    # Create a new tkinter window
+    root = tk.Tk()
+    root.title(title_text)
+
+    root.overrideredirect(True)  # This removes the window title bar
+
+    # Set up the label with the text
+    label = tk.Label(
+        root, text=display_text, padx=10, pady=10, wraplength=text_wrap_len
+    )
+    label.pack()
+
+    # Variable to store the result
+    result = None
+
+    # Function to handle the OK button click event
+    def on_ok():
+        nonlocal result
+        result = True
+        root.destroy()  # Close the popup
+
+    # Function to handle the Cancel button click event
+    def on_cancel():
+        nonlocal result
+        result = False
+        root.destroy()  # Close the popup
+
+    # Create the OK and Cancel buttons
+    ok_button = tk.Button(root, text="OK", command=on_ok)
+    ok_button.pack(side="left", padx=10, pady=10)
+
+    cancel_button = tk.Button(
+        root, text="Cancel", command=on_cancel, bg="red", fg="white"
+    )
+    cancel_button.pack(side="right", padx=10, pady=10)
+
+    # Center the window
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    position_top = int(screen_height / 2 - window_height / 2)
+    position_right = int(screen_width / 2 - window_width / 2)
+
+    root.geometry(f"{window_width}x{window_height}+{position_right}+{position_top}")
+
+    # Start the Tkinter event loop and wait for the user interaction
+    root.mainloop()
+
+    return result
 
 
 def close_sponsored_session_teamviewer():
@@ -77,6 +132,10 @@ def run_bot_with_gui():
     bot = WoWFishBot(bot_gui, save_images=True)
     bot_gui.set_bot(bot)
     bot_root.mainloop()
+
+
+def bgr2rgb(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
 class WoWFishBot:
@@ -702,142 +761,143 @@ class WoWFishBot:
                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             )
 
-        # get appdata dir
-        appdata_dir = os.getenv("APPDATA")
-        date_readable = time.strftime("%Y_%m_%d_%H_%M_%S")
-        self.debug_data_export_folder = os.path.join(
-            appdata_dir, "WoWFishBot", "debug", date_readable + random.choice('ABCDEF')
-        )
-        os.makedirs(self.debug_data_export_folder, exist_ok=True)
-        os.makedirs(os.path.join(self.debug_data_export_folder,'predictions'), exist_ok=True)
+        def _to_wrap():
+            if (
+                show_popup("Are you sure you want to run debug mode?", "Debug Mode")
+                is False
+            ):
+                return
 
-
-
-        # write system info as a json
-        system_info = collect_all_system_info()
-        system_info_export_path = os.path.join(
-            self.debug_data_export_folder, "system_info.txt"
-        )
-        with open(system_info_export_path, "w") as f:
-            f.write(system_info)
-
-        #stats
-        valid_predicts = 0
-        invalid_predicts = 0
-
-        # for 10 seconds, test the bot, saving related info
-        start_time = time.time()
-        debug_duration = 30  # s
-        casts = 0
-        cast_every=10#s
-        print("Running debug mode for {debug_duration} seconds...")
-        while time.time() - start_time < debug_duration:
-            #print
-            time_left = int(debug_duration - (time.time() - start_time))
-            print(F'DEBUG MODE: {time_left}s until complete...')
-
-            #handle casting logic
-            time_of_next_cast = casts* cast_every
-            time_taken = time.time() - start_time
-            if time_taken > time_of_next_cast:
-                self.start_fishing()
-                casts += 1
-                time.sleep(3)
-
-            this_uid = make_uid()
-
-
-            #grab a raw image of the entire desktop
-            screen_image_start_time = time.time()
-            screen_image = pyautogui.screenshot()
-            screen_image = np.array(screen_image)
-            screen_image_save_path = os.path.join(
-                self.debug_data_export_folder,
-                "predictions",
-                this_uid + "_screen_image" + ".png",
-                )
-            cv2.imwrite(screen_image_save_path, screen_image)
-            screen_image_time_taken =round(( time.time() - screen_image_start_time),2)
-            print(F'Took {screen_image_time_taken}s to grab a screen image of size {screen_image.shape} to {screen_image_save_path}')
-
-
-            #grab roi image, save it
-            roi_image_start_time = time.time()
-            roi_image = self.get_roi_image()
-            roi_image_save_path = os.path.join(
-                self.debug_data_export_folder,
-                "predictions",
-                this_uid + "_roi_image" + ".png",
+            # get appdata dir
+            appdata_dir = os.getenv("APPDATA")
+            date_readable = time.strftime("%Y_%m_%d_%H_%M_%S")
+            self.debug_data_export_folder = os.path.join(
+                appdata_dir,
+                "WoWFishBot",
+                "debug",
+                date_readable + random.choice("ABCDEF"),
             )
-            cv2.imwrite(roi_image_save_path, roi_image)
-            roi_image_time_taken =round(( time.time() - roi_image_start_time),2)
-            print(F'Took {roi_image_time_taken}s to grab a roi image of size {roi_image.shape} to {roi_image_save_path}')
-
-            #predict, write prediction
-            prediction_start_time = time.time()
-            bbox, score = self.bobber_detector.detect_object_in_image(
-                roi_image, draw_result=False
+            os.makedirs(self.debug_data_export_folder, exist_ok=True)
+            os.makedirs(
+                os.path.join(self.debug_data_export_folder, "predictions"),
+                exist_ok=True,
             )
-            annotation_line = f"{time.time()} {bbox} {score}"
-            annotation_file_path = os.path.join(
-                self.debug_data_export_folder,
-                "predictions",
-                this_uid + "_prediction" + ".txt",
-            )
-            with open(annotation_file_path, "w") as f:
-                f.write(annotation_line)
-            prediction_time_taken = round((time.time() - prediction_start_time),2)
-            print(F'Took {prediction_time_taken}s to predict {annotation_line} and write it to {annotation_file_path}')
 
-            #save bobber image and prediction if its good
-            if bbox != []:
-                bobber_image_start_time = time.time()
-                bobber_image = self.make_bobber_image(bbox, roi_image)
-                bobber_image_save_path = os.path.join(
+            # write system info as a txt
+            system_info = collect_all_system_info()
+            system_info_export_path = os.path.join(
+                self.debug_data_export_folder, "system_info.txt"
+            )
+            with open(system_info_export_path, "w") as f:
+                f.write(system_info)
+
+            # stats
+            valid_predicts = 0
+            invalid_predicts = 0
+
+            # for 10 seconds, test the bot, saving related info
+            start_time = time.time()
+            debug_duration = 60  # s
+            casts = 0
+            cast_every = 20  # s
+            print("Running debug mode for {debug_duration} seconds...")
+            while time.time() - start_time < debug_duration:
+                # print
+                time_left = int(debug_duration - (time.time() - start_time))
+                print(f"DEBUG MODE: {time_left}s until complete...")
+
+                # handle casting logic
+                time_of_next_cast = casts * cast_every
+                time_taken = time.time() - start_time
+                if time_taken > time_of_next_cast:
+                    self.start_fishing()
+                    casts += 1
+                    time.sleep(3)
+
+                this_uid = make_uid()
+
+                # grab a raw image of the entire desktop
+                screen_image = pyautogui.screenshot()
+                screen_image = np.array(screen_image)
+                screen_image_save_path = os.path.join(
                     self.debug_data_export_folder,
                     "predictions",
-                    this_uid + "_bobber_image" + ".png",
+                    this_uid + "_screen_image" + ".png",
                 )
-                cv2.imwrite(bobber_image_save_path, bobber_image)
-                valid_predicts += 1
-                bobber_image_time_taken = round((time.time() - bobber_image_start_time),2)
-                print(F'Took {bobber_image_time_taken}s to save a bobber image of size {bobber_image.shape} to {bobber_image_save_path}')
-            else:
-                invalid_predicts += 1
+                screen_image = bgr2rgb(screen_image)
+                cv2.imwrite(screen_image_save_path, screen_image)
 
-            #save the whole wow image
-            wow_image_start_time = time.time()
-            wow_image = self.get_wow_image()
-            wow_image_save_path = os.path.join(
-                self.debug_data_export_folder, "wow", make_uid() + ".png"
+                # grab roi image, save it
+                roi_image = self.get_roi_image()
+                roi_image_save_path = os.path.join(
+                    self.debug_data_export_folder,
+                    "predictions",
+                    this_uid + "_roi_image" + ".png",
+                )
+                roi_image = bgr2rgb(roi_image)
+                cv2.imwrite(roi_image_save_path, roi_image)
+
+                # predict, write prediction
+                bbox, score = self.bobber_detector.detect_object_in_image(
+                    roi_image, draw_result=False
+                )
+                annotation_line = f"{time.time()} {bbox} {score}"
+                annotation_file_path = os.path.join(
+                    self.debug_data_export_folder,
+                    "predictions",
+                    this_uid + "_prediction" + ".txt",
+                )
+                with open(annotation_file_path, "w") as f:
+                    f.write(annotation_line)
+
+                # save bobber image and prediction if its good
+                if bbox != []:
+                    bobber_image_save_path = os.path.join(
+                        self.debug_data_export_folder,
+                        "predictions",
+                        this_uid + "_bobber_image" + ".png",
+                    )
+                    try:
+                        bobber_image = self.make_bobber_image(bbox, roi_image)
+                        bobber_image = bgr2rgb(bobber_image)
+                        cv2.imwrite(bobber_image_save_path, bobber_image)
+                    except:
+                        pass
+                    valid_predicts += 1
+
+                else:
+                    invalid_predicts += 1
+
+                # save the whole wow image
+                wow_image = self.get_wow_image()
+                wow_image_save_path = os.path.join(
+                    self.debug_data_export_folder, 'predictions',this_uid + "_wow_image" + ".png"
+                )
+                wow_image = bgr2rgb(wow_image)
+                cv2.imwrite(wow_image_save_path, wow_image)
+
+            # save the results
+            total_predicts = valid_predicts + invalid_predicts
+            valid_percent = round((valid_predicts / total_predicts) * 100, 2)
+            invalid_percent = round((invalid_predicts / total_predicts) * 100, 2)
+            results_string = f"total casts {casts}"
+            results_string += f"\ntotal predictions {total_predicts}"
+            results_string += f"\nvalid predictions {valid_predicts}"
+            results_string += f"\nvalid percent {valid_percent}"
+            results_string += f"\ninvalid predictions {invalid_predicts}"
+            results_string += f"\ninvalid percent {invalid_percent}"
+            results_string += f"\nduration {debug_duration}"
+            results_save_path = os.path.join(
+                self.debug_data_export_folder, "results.txt"
             )
-            cv2.imwrite(wow_image_save_path, wow_image)
-            wow_image_time_taken = round((time.time() - wow_image_start_time),2)
-            print(F'Took {wow_image_time_taken}s to save a wow image of size {wow_image.shape} to {wow_image_save_path}')
+            with open(results_save_path, "w") as f:
+                f.write(results_string)
 
-        # save the results
-        total_predicts = valid_predicts + invalid_predicts
-        valid_percent = round((valid_predicts / total_predicts) * 100, 2)
-        invalid_percent = round((invalid_predicts / total_predicts) * 100, 2)
-        results_string = f'total casts {casts}'
-        results_string += f'\ntotal predictions {total_predicts}'
-        results_string += f'\nvalid predictions {valid_predicts}'
-        results_string += f'\nvalid percent {valid_percent}'
-        results_string += f'\ninvalid predictions {invalid_predicts}'
-        results_string += f'\ninvalid percent {invalid_percent}'
-        results_string += f'\nduration {debug_duration}'
-        results_save_path = os.path.join(self.debug_data_export_folder, "results.txt")
-        with open(results_save_path, "w") as f:
-            f.write(results_string)
+            print(
+                f"Created a debug folder of size {get_folder_size(self.debug_data_export_folder)} at {self.debug_data_export_folder}"
+            )
 
-
-
-
-
-
-        print(
-            f"Created a debug folder of size {get_folder_size(self.debug_data_export_folder)} at {self.debug_data_export_folder}"
-        )
+        threading.Thread(target=_to_wrap).start()
 
     def run(self):
         self.running_event.set()  # Start the event
