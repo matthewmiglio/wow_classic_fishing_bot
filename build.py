@@ -1,3 +1,4 @@
+import shutil
 import os
 import datetime
 from cx_Freeze import Executable, setup
@@ -50,15 +51,19 @@ def get_include_files(top_dir, skip_folders, skip_file_types):
 
 
 def get_most_recent_onnx_files():
-    bobber_models_folder = os.path.join(os.getcwd(), 'inference', 'bobber_models')
-    splash_models_folder = os.path.join(os.getcwd(), 'inference', 'splash_models')
+    bobber_models_folder = os.path.join(os.getcwd(), "inference", "bobber_models")
+    splash_models_folder = os.path.join(os.getcwd(), "inference", "splash_models")
 
-    most_recent_bobber_model_path=os.path.join(bobber_models_folder,os.listdir(bobber_models_folder)[-1])
+    most_recent_bobber_model_path = os.path.join(
+        bobber_models_folder, os.listdir(bobber_models_folder)[-1]
+    )
 
-    most_recent_splash_model_path=os.path.join(splash_models_folder,os.listdir(splash_models_folder)[-1])
+    most_recent_splash_model_path = os.path.join(
+        splash_models_folder, os.listdir(splash_models_folder)[-1]
+    )
 
+    return [most_recent_bobber_model_path, most_recent_splash_model_path]
 
-    return [most_recent_bobber_model_path,most_recent_splash_model_path]
 
 def main():
     versioning = Versioning()
@@ -168,5 +173,12 @@ def main():
     )
 
 
+def delete_build_folder():
+    build_folder_path = os.path.join(os.getcwd(), "build")
+    print(build_folder_path)
+    shutil.rmtree(build_folder_path)
+
+
 main()
+delete_build_folder()
 # poetry run python build.py bdist_msi
