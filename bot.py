@@ -1054,8 +1054,8 @@ class Logger:
         self.init_log_files()
 
         if CLOUD_STATS_FEATURE is True:
-            self.cloud_update_increment = 3 * 60 * 60  # 3 hours
-            self.first_cloud_update_buffer = 10 * 60  # 10 minutes
+            self.cloud_update_increment = 1 * 60 * 60  # 3 hours
+            self.first_cloud_update_buffer = 2 * 60  # 10 minutes
             self.cloud_stats_table: StatsTable = StatsTable()
             self.cloud_users_table: UsersTable = UsersTable()
             self.cloud_users_table.add_user()
