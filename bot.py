@@ -14,6 +14,7 @@ from PIL import Image
 
 from _FEATURE_FLAGS import (
     BLACKLIST_FEATURE_FLAG,
+    CLOUD_STATS_FEATURE,
     SAVE_IMAGES_FEATURE,
     SAVE_LOGS_FEATURE,
 )
@@ -22,6 +23,8 @@ from gui import GUI, GUI_WINDOW_NAME
 from image_rec import classification_scorer, get_color_frequencies
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
+from cloud.supa import UsersTable, StatsTable
+
 
 START_FISHING_COORD = (930, 1400)
 FISHING_POLE_COORD = (520, 1330)
@@ -195,7 +198,7 @@ class WoWFishBot:
         )
 
         # logger
-        self.logger = Logger()
+        self.logger: Logger = Logger()
 
         # printing
         self.print_mode_enabled = False
@@ -871,7 +874,9 @@ class WoWFishBot:
                 # save the whole wow image
                 wow_image = self.get_wow_image()
                 wow_image_save_path = os.path.join(
-                    self.debug_data_export_folder, 'predictions',this_uid + "_wow_image" + ".png"
+                    self.debug_data_export_folder,
+                    "predictions",
+                    this_uid + "_wow_image" + ".png",
                 )
                 wow_image = bgr2rgb(wow_image)
                 cv2.imwrite(wow_image_save_path, wow_image)
@@ -963,10 +968,20 @@ class WoWFishBot:
                     occurence_ratio=0.3,
                 ):
                     print("Splash detected! Reeling in fish!")
-                    self.add_reel()
                     bbox = self.convert_bbox_to_usable(bbox)
                     self.click_bobber_bbox(bbox)
                     self.set_blacklist()
+                    self.add_reel()
+
+                    # update cloud stats
+                    if self.logger.should_cloud_update():
+                        self.logger.cloud_stats_table.add_stats(
+                            self.time_running,
+                            self.reels,
+                            self.casts,
+                            len(self.loot_classifier.history),
+                        )
+                        self.logger.time_of_last_cloud_update = time.time()
 
                     # if blacklist feature is off,  or untoggled by user
                     # we assume autoloot is on, so skip collect_loot()
@@ -981,11 +996,17 @@ class WoWFishBot:
 
                     loot = self.loot_classifier.collect_loot()
                     if loot:
-                        self.update_gui(
-                            stat="loots", value=len(self.loot_classifier.history)
-                        )
+
+                        # update gui
+                        self.update_gui(stat="loots", value=len(self.loot_classifier.history))
+
+                        # update logger
                         self.logger.add_to_loot_log(loot)
+
+                        # update loot history
                         self.update_loot_history_stats()
+
+
 
                 # if we want to save the splash images
                 if self.save_splash_images_toggle:
@@ -1014,7 +1035,8 @@ class WoWFishBot:
                         self.time_of_last_cast = time.time()
                         self.predictions = []  # clear the predictions for new fishing session
                     else:
-                        print("Bobber not found, but just casted...")
+                        # print("Bobber not found, but just casted...")
+                        pass
 
             self.add_time_taken(time.time() - start_time)
 
@@ -1030,6 +1052,31 @@ class Logger:
         )
         self.loot_log = os.path.join(self.logs_folder, "loot_log.txt")
         self.init_log_files()
+
+        if CLOUD_STATS_FEATURE is True:
+            self.cloud_update_increment = 3 * 60 * 60  # 3 hours
+            self.first_cloud_update_buffer = 10 * 60  # 10 minutes
+            self.cloud_stats_table: StatsTable = StatsTable()
+            self.cloud_users_table: UsersTable = UsersTable()
+            self.cloud_users_table.add_user()
+
+            # init time_of_last_cloud_update so we update it
+            # self.first_cloud_update_buffer seconds after starting
+            self.time_of_last_cloud_update = (
+                time.time()
+                - self.cloud_update_increment
+                + self.first_cloud_update_buffer
+            )
+
+    def should_cloud_update(self):
+        if not CLOUD_STATS_FEATURE:
+            return False
+
+        if time.time() - self.time_of_last_cloud_update > self.cloud_update_increment:
+            self.time_of_last_cloud_update = time.time()
+            return True
+
+        return False
 
     def init_log_files(self):
         if SAVE_LOGS_FEATURE is not True:
