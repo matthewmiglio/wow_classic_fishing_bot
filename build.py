@@ -54,15 +54,26 @@ def get_most_recent_onnx_files():
     bobber_models_folder = os.path.join(os.getcwd(), "inference", "bobber_models")
     splash_models_folder = os.path.join(os.getcwd(), "inference", "splash_models")
 
+    most_recent_bobber_model = sorted(os.listdir(bobber_models_folder), reverse=True)[0]
+    most_recent_splash_model = sorted(os.listdir(splash_models_folder), reverse=True)[0]
+
     most_recent_bobber_model_path = os.path.join(
-        bobber_models_folder, os.listdir(bobber_models_folder)[-1]
+        bobber_models_folder, most_recent_bobber_model
     )
-
     most_recent_splash_model_path = os.path.join(
-        splash_models_folder, os.listdir(splash_models_folder)[-1]
+        splash_models_folder, most_recent_splash_model
     )
 
-    return [most_recent_bobber_model_path, most_recent_splash_model_path]
+    return [
+        (
+            most_recent_bobber_model_path,
+            os.path.join("inference", "bobber_models", most_recent_bobber_model),
+        ),
+        (
+            most_recent_splash_model_path,
+            os.path.join("inference", "splash_models", most_recent_splash_model),
+        ),
+    ]
 
 
 def main():
@@ -104,8 +115,9 @@ def main():
         "build.py",
     ]
 
+    # Collect the files to include, including the .onnx models with the new format
     files_to_include = [
-        path
+        (path, os.path.relpath(path, os.getcwd()))  # Relative paths for other files
         for path in get_include_files(
             top_dir=os.getcwd(),
             skip_folders=skip_folders,
@@ -116,7 +128,7 @@ def main():
 
     build_exe_options = {
         "excludes": ["test", "setuptools"],
-        "include_files": files_to_include,
+        "include_files": files_to_include,  # Use the tuple format: (source, target)
         "include_msvcr": True,
     }
 
@@ -166,23 +178,28 @@ def main():
         copyright=COPYRIGHT,
     )
 
-    setup(
-        name=PROJECT_NAME,
-        description=DESCRIPTION,
-        executables=[exe],
-        options={
-            "bdist_msi": bdist_msi_options,
-            "build_exe": build_exe_options,
-        },
-    )
+    try:
+        setup(
+            name=PROJECT_NAME,
+            description=DESCRIPTION,
+            executables=[exe],
+            options={
+                "bdist_msi": bdist_msi_options,
+                "build_exe": build_exe_options,
+            },
+        )
+    except SystemExit:
+        print('\nError! This is intended to be run with "poetry run python build.py bdist_msi"')
+        return
 
 
 def delete_build_folder():
     build_folder_path = os.path.join(os.getcwd(), "build")
+    if not os.path.exists(build_folder_path):
+        return
     print(build_folder_path)
     shutil.rmtree(build_folder_path)
 
 
 main()
 delete_build_folder()
-# poetry run python build.py bdist_msi
