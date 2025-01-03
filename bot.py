@@ -1,4 +1,16 @@
 print("Starting python...")
+
+from _FEATURE_FLAGS import (
+    BLACKLIST_FEATURE_FLAG,
+    CLOUD_STATS_FEATURE,
+    SAVE_IMAGES_FEATURE,
+    SAVE_LOGS_FEATURE,
+)
+from inference.find_bobber import BobberDetector
+from inference.splash_classifier import SplashClassifier
+from cloud.supa import UsersTable, StatsTable
+
+
 import os
 import random
 import threading
@@ -12,18 +24,10 @@ import pygetwindow
 from numpy import ndarray
 from PIL import Image
 
-from _FEATURE_FLAGS import (
-    BLACKLIST_FEATURE_FLAG,
-    CLOUD_STATS_FEATURE,
-    SAVE_IMAGES_FEATURE,
-    SAVE_LOGS_FEATURE,
-)
+
 from debug import collect_all_system_info, get_folder_size
 from gui import GUI, GUI_WINDOW_NAME
 from image_rec import classification_scorer, get_color_frequencies
-from inference.find_bobber import BobberDetector
-from inference.splash_classifier import SplashClassifier
-from cloud.supa import UsersTable, StatsTable
 
 
 START_FISHING_COORD = (930, 1400)
@@ -370,7 +374,7 @@ class WoWFishBot:
                 window = pygetwindow.getWindowsWithTitle(GUI_WINDOW_NAME)[0]
                 if window.left == 0 and window.top == 0:
                     return True
-            except:
+            except Exception as e:
                 return False
             return False
 
@@ -982,8 +986,6 @@ class WoWFishBot:
                     self.set_blacklist()
                     self.add_reel()
 
-
-
                     # if blacklist feature is off,  or untoggled by user
                     # we assume autoloot is on, so skip collect_loot()
                     if (
@@ -997,17 +999,16 @@ class WoWFishBot:
 
                     loot = self.loot_classifier.collect_loot()
                     if loot:
-
                         # update gui
-                        self.update_gui(stat="loots", value=len(self.loot_classifier.history))
+                        self.update_gui(
+                            stat="loots", value=len(self.loot_classifier.history)
+                        )
 
                         # update logger
                         self.logger.add_to_loot_log(loot)
 
                         # update loot history
                         self.update_loot_history_stats()
-
-
 
                 # if we want to save the splash images
                 if self.save_splash_images_toggle:
@@ -1055,7 +1056,7 @@ class Logger:
         self.init_log_files()
 
         if CLOUD_STATS_FEATURE is True:
-            self.cloud_update_increment = 0.5*60 * 60  # 3 hours
+            self.cloud_update_increment = 0.5 * 60 * 60  # 3 hours
             self.first_cloud_update_buffer = 2 * 60  # 10 minutes
             self.cloud_stats_table: StatsTable = StatsTable()
             self.cloud_users_table: UsersTable = UsersTable()
