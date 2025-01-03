@@ -29,32 +29,28 @@ def get_current_os():
 
 
 def get_system_uid():
-    username = "NULL"
-    pc_name = "NULL"
-    current_os = "NULL"
+    un ,pcn ,cos= "NULL","NULL","NULL"
 
     try:
-        username = os.getlogin()
+        un = os.getlogin()
     except:
         pass
     try:
-        pc_name = socket.gethostname()
+        pcn = socket.gethostname()
     except:
         pass
     try:
-        current_os = get_current_os()
+        cos = get_current_os()
     except:
         pass
 
-    return f"{username}_{pc_name}_{current_os}".replace("-", "_").replace(" ", "_")
+    return f"{un}_{pcn}_{cos}".replace("-", "_").replace(" ", "_")
 
 
 class Supa:
     def __init__(self):
-        self.pklr = Pickler()
-        self.url = self.pklr.get("u")
-        self.key = self.pklr.get("k")
-        self.supabase = create_client(self.url, self.key)
+        pklr = Pickler()
+        self.supabase = create_client(pklr.get("u"), pklr.get("k"))
 
     def insert(self, table_name: str, data: dict):
         try:
@@ -163,18 +159,11 @@ def test():
 
 class Pickler:
     def __init__(self):
-        self.kfp = os.path.join(os.getcwd(), "supabase", "data", "XbsgAJG8sbA2.pkl")
-        self.ufp = os.path.join(os.getcwd(), "supabase", "data", "iKnsfabt73hB.pkl")
-        os.makedirs(os.path.join(os.getcwd(), "supabase", "data"), exist_ok=True)
+        self.kfp = os.path.join(os.getcwd(), "cloud", "data", "XbsgAJG8sbA2.pkl")
+        self.ufp = os.path.join(os.getcwd(), "cloud", "data", "iKnsfabt73hB.pkl")
+        os.makedirs(os.path.join(os.getcwd(), "cloud", "data"), exist_ok=True)
 
     def place(self, string: str, type: str):
-        """
-        Pickles the given string to the specified file path.
-
-        Args:
-            string (str): The string to pickle.
-            file_path (str): The path to the file where the string will be pickled.
-        """
         if type not in ["k", "u"]:
             print("invalid type for key.place()")
             return
@@ -187,15 +176,6 @@ class Pickler:
                 pickle.dump(string, file)
 
     def get(self, type: str):
-        """
-        Retrieves and unpickles the string from the given file path.
-
-        Args:
-            file_path (str): The path to the file containing the pickled string.
-
-        Returns:
-            str: The unpickled string.
-        """
         if type not in ["k", "u"]:
             print("invalid type for key.get()")
             return
