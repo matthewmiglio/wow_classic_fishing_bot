@@ -1,3 +1,4 @@
+import pickle
 import time
 
 from supabase import create_client
@@ -50,8 +51,9 @@ def get_system_uid():
 
 class Supa:
     def __init__(self):
-        self.url = "https://ubingyvgrlgoknfkhknc.supabase.co"
-        self.key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InViaW5neXZncmxnb2tuZmtoa25jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU4NTQxNjIsImV4cCI6MjA1MTQzMDE2Mn0.ntMn7QiENPLSkPqO2U_4mYpAwmtLO69cIrZBgEQSM9I"
+        self.pklr = Pickler()
+        self.url = self.pklr.get("u")
+        self.key = self.pklr.get("k")
         self.supabase = create_client(self.url, self.key)
 
     def insert(self, table_name: str, data: dict):
@@ -157,6 +159,53 @@ def test():
         print(
             f"\t{stat_row['uuid']} : {stat_row['runtime']}s : {stat_row['casts']} casts : {stat_row['loots']} loots : {stat_row['timestamp']}"
         )
+
+
+class Pickler:
+    def __init__(self):
+        self.kfp = os.path.join(os.getcwd(), "supabase", "data", "XbsgAJG8sbA2.pkl")
+        self.ufp = os.path.join(os.getcwd(), "supabase", "data", "iKnsfabt73hB.pkl")
+        os.makedirs(os.path.join(os.getcwd(), "supabase", "data"), exist_ok=True)
+
+    def place(self, string: str, type: str):
+        """
+        Pickles the given string to the specified file path.
+
+        Args:
+            string (str): The string to pickle.
+            file_path (str): The path to the file where the string will be pickled.
+        """
+        if type not in ["k", "u"]:
+            print("invalid type for key.place()")
+            return
+
+        if type == "k":
+            with open(self.kfp, "wb") as file:
+                pickle.dump(string, file)
+        else:
+            with open(self.ufp, "wb") as file:
+                pickle.dump(string, file)
+
+    def get(self, type: str):
+        """
+        Retrieves and unpickles the string from the given file path.
+
+        Args:
+            file_path (str): The path to the file containing the pickled string.
+
+        Returns:
+            str: The unpickled string.
+        """
+        if type not in ["k", "u"]:
+            print("invalid type for key.get()")
+            return
+
+        if type == "k":
+            with open(self.kfp, "rb") as file:
+                return pickle.load(file)
+        else:
+            with open(self.ufp, "rb") as file:
+                return pickle.load(file)
 
 
 if __name__ == "__main__":
