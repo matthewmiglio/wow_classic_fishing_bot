@@ -931,6 +931,15 @@ class WoWFishBot:
                 base_image, draw_result=False
             )
 
+            # update cloud stats
+            if self.logger.should_cloud_update():
+                self.logger.cloud_stats_table.add_stats(
+                    self.time_running,
+                    self.reels,
+                    self.casts,
+                    len(self.loot_classifier.history),
+                )
+
             # if a bobber detected
             if score >= self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION and bbox != []:
                 # get the image of the bobber based on the bbox we infered
@@ -973,15 +982,7 @@ class WoWFishBot:
                     self.set_blacklist()
                     self.add_reel()
 
-                    # update cloud stats
-                    if self.logger.should_cloud_update():
-                        self.logger.cloud_stats_table.add_stats(
-                            self.time_running,
-                            self.reels,
-                            self.casts,
-                            len(self.loot_classifier.history),
-                        )
-                        self.logger.time_of_last_cloud_update = time.time()
+
 
                     # if blacklist feature is off,  or untoggled by user
                     # we assume autoloot is on, so skip collect_loot()
