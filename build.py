@@ -68,7 +68,7 @@ def get_most_recent_onnx_files():
 def main():
     versioning = Versioning()
     this_version_index = versioning.get_version()
-    PROJECT_NAME = f"MattFishBot {datetime.datetime.now().strftime('%Y-%m-%d')} {this_version_index}"
+    PROJECT_NAME = f"Matt's FishBot {datetime.datetime.now().strftime('%Y-%m-%d')}_v{this_version_index}"
     AUTHOR = "Matthew Miglio"
     DESCRIPTION = "Automated WoW Fishing Bot"
     KEYWORDS = "World of Warcraft Classic, Fishing, Bot"
@@ -151,6 +151,10 @@ def main():
                 print(f"\t  {k2}: {v2}")
         else:
             print(f"\t{k}: {v}")
+
+    if input("OK to build (y/n): ").lower() != "y":
+        print("Exiting")
+        return
 
     exe = Executable(
         script=ENTRY_POINT,
