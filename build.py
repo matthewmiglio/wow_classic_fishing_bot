@@ -1,3 +1,4 @@
+import time
 import shutil
 import os
 import datetime
@@ -189,7 +190,9 @@ def main():
             },
         )
     except SystemExit:
-        print('\nError! This is intended to be run with "poetry run python build.py bdist_msi"')
+        print(
+            '\nError! This is intended to be run with "poetry run python build.py bdist_msi"'
+        )
         return
 
 
@@ -200,6 +203,10 @@ def delete_build_folder():
     print(build_folder_path)
     shutil.rmtree(build_folder_path)
 
-
-main()
-delete_build_folder()
+if __name__ == '__main__':
+    start_time = time.time()
+    main()
+    delete_build_folder()
+    end_time = time.time()
+    time_taken_readable_hms = str(datetime.timedelta(seconds=int(end_time - start_time)))
+    print(f'Built in {time_taken_readable_hms}')
