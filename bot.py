@@ -934,10 +934,10 @@ class WoWFishBot:
             # update cloud stats
             if self.logger.should_cloud_update():
                 self.logger.cloud_stats_table.add_stats(
-                    self.time_running,
-                    self.reels,
-                    self.casts,
-                    len(self.loot_classifier.history),
+                    runtime=self.time_running,
+                    reels=self.reels,
+                    casts=self.casts,
+                    loots=len(self.loot_classifier.history),
                 )
 
             # if a bobber detected
@@ -1055,7 +1055,7 @@ class Logger:
         self.init_log_files()
 
         if CLOUD_STATS_FEATURE is True:
-            self.cloud_update_increment = 1 * 60 * 60  # 3 hours
+            self.cloud_update_increment = 0.5*60 * 60  # 3 hours
             self.first_cloud_update_buffer = 2 * 60  # 10 minutes
             self.cloud_stats_table: StatsTable = StatsTable()
             self.cloud_users_table: UsersTable = UsersTable()
