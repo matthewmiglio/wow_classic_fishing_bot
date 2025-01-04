@@ -7,7 +7,6 @@ from _FEATURE_FLAGS import (
 )
 from inference.find_bobber import BobberDetector
 from inference.splash_classifier import SplashClassifier
-from cloud.supa import UsersTable, StatsTable, UsageTable
 from logger import Logger
 from looter import LootClassifier
 from constants import (
@@ -16,6 +15,8 @@ from constants import (
     WOW_CLIENT_RESIZE,
     DISPLAY_IMAGE_SIZE,
 )
+from debug import collect_all_system_info, get_folder_size
+from gui import GUI, GUI_WINDOW_NAME
 
 import os
 import random
@@ -30,9 +31,7 @@ import pygetwindow
 from PIL import Image
 
 
-from debug import collect_all_system_info, get_folder_size
-from gui import GUI, GUI_WINDOW_NAME
-from image_rec import classification_scorer, get_color_frequencies
+
 
 
 def show_popup(display_text, title_text):
