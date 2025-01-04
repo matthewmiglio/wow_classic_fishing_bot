@@ -17,6 +17,7 @@ scipy = "^1.14.1"
 cx-freeze = "^7.2.6"
 screeninfo = "^0.8.1"
 supabase = "^2.11.0"
+psutil = "^6.1.1"
 
 
 [build-system]

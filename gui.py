@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 
 from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG, DEBUG_BUTTON_VISIBLE
 from colors import gui_colors, rainbow_colors
-from loot_constants import BLACKLIST_STRINGS
+from constants import BLACKLIST_STRINGS
 
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
 GUI_SIZE = "450x750"

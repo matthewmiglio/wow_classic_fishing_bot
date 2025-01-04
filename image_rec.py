@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from collections import defaultdict
-from loot_constants import LOOT_COLOR_DATA
+from constants import LOOT_COLOR_DATA
 from scipy.spatial import cKDTree
 
 COLOR_PALETTE = [

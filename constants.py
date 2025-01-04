@@ -365,10 +365,11 @@ LOOT_COLOR_DATA = {
         (0, 0, 0): 374,
     },
 }
-
-
 BLACKLIST_STRINGS = list(LOOT_COLOR_DATA.keys())
-
-
-# sort LOOT_COLOR_DATA by key alphabetically
 LOOT_COLOR_DATA = dict(sorted(LOOT_COLOR_DATA.items(), key=lambda item: item[0]))
+WOW_WINDOW_NAME = "World of Warcraft"
+START_FISHING_COORD = (930, 1400)
+FISHING_POLE_COORD = (520, 1330)
+DISPLAY_IMAGE_SIZE = 200
+WOW_CLIENT_RESIZE = (800, 600)
+TOP_SAVE_DIR = "save_images"
