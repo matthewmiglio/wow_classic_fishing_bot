@@ -124,6 +124,85 @@ class StatsTable:
         print("unexpected response from add_stats:", out)
 
 
+class UsageTable:
+    def __init__(self):
+        self.supa = Supa()
+        self.table_name = "fishbot-usage-table"
+
+    def get_user_usage(self, uuid):
+        """Fetches the usage data for a specific user using uuid"""
+        try:
+            response = self.supa.supabase.table(self.table_name).select("*").eq("uuid", uuid).execute()
+            if response.data:
+                return response.data[0]  # Assuming there's only one record per uuid
+            else:
+                return None
+        except Exception as e:
+            return e
+
+    def increment_uses(self):
+        """Increments the 'starts' counter for a user, creates a new user if necessary"""
+        user_uuid = get_system_uid()
+        user_usage = self.get_user_usage(user_uuid)
+
+        if user_usage is None:
+            # If the user does not exist, create an entry
+            usage_data = {
+                "uuid": user_uuid,
+                "starts": 1,
+                "last_use_time": time.time(),
+            }
+            out = self.supa.insert(self.table_name, usage_data)
+            if "data=[" in str(out):
+                print("New user usage added")
+                return "new user usage added"
+            print("Unexpected response from increment_uses:", out)
+            return
+
+        # If the user already exists, increment the 'starts' value
+        new_starts = user_usage['starts'] + 1
+        updated_usage_data = {
+            "starts": new_starts,
+        }
+
+        out = self.supa.supabase.table(self.table_name).update(updated_usage_data).eq("uuid", user_uuid).execute()
+        if "data=[" in str(out):
+            print("User usage incremented")
+            return "user usage incremented"
+        print("Unexpected response from increment_uses:", out)
+
+    def set_last_use_time(self):
+        """Sets the 'last_use_time' for a user"""
+        user_uuid = get_system_uid()
+        user_usage = self.get_user_usage(user_uuid)
+
+        if user_usage is None:
+            # If the user does not exist, create an entry
+            usage_data = {
+                "uuid": user_uuid,
+                "starts": 1,
+                "last_use_time": time.time(),
+            }
+            out = self.supa.insert(self.table_name, usage_data)
+            if "data=[" in str(out):
+                print("New user usage added")
+                return "new user usage added"
+            print("Unexpected response from set_last_use_time:", out)
+            return
+
+        # If the user exists, update the 'last_use_time'
+        updated_usage_data = {
+            "last_use_time": time.time(),
+        }
+
+        out = self.supa.supabase.table(self.table_name).update(updated_usage_data).eq("uuid", user_uuid).execute()
+        if "data=[" in str(out):
+            print("User last use time updated")
+            return "user last use time updated"
+        print("Unexpected response from set_last_use_time:", out)
+
+
+
 def test():
     import random
 
@@ -155,6 +234,13 @@ def test():
         print(
             f"\t{stat_row['uuid']} : {stat_row['runtime']}s : {stat_row['casts']} casts : {stat_row['loots']} loots : {stat_row['timestamp']}"
         )
+
+def test_usage_table():
+    ut = UsageTable()
+    ut.increment_uses()
+    ut.set_last_use_time()
+
+
 
 
 class Pickler:
@@ -189,4 +275,5 @@ class Pickler:
 
 
 if __name__ == "__main__":
-    test()
+    # test()
+    test_usage_table()
