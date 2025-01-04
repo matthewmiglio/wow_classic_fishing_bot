@@ -10,7 +10,12 @@ from inference.splash_classifier import SplashClassifier
 from cloud.supa import UsersTable, StatsTable, UsageTable
 from logger import Logger
 from looter import LootClassifier
-from constants import WOW_WINDOW_NAME, TOP_SAVE_DIR, WOW_CLIENT_RESIZE, DISPLAY_IMAGE_SIZE
+from constants import (
+    WOW_WINDOW_NAME,
+    TOP_SAVE_DIR,
+    WOW_CLIENT_RESIZE,
+    DISPLAY_IMAGE_SIZE,
+)
 
 import os
 import random
@@ -28,9 +33,6 @@ from PIL import Image
 from debug import collect_all_system_info, get_folder_size
 from gui import GUI, GUI_WINDOW_NAME
 from image_rec import classification_scorer, get_color_frequencies
-
-
-
 
 
 def show_popup(display_text, title_text):
@@ -655,7 +657,7 @@ class WoWFishBot:
         try:
             window = pygetwindow.getWindowsWithTitle(window_name)[0]
         except:
-            print('You need to have WoW open to get a ROI image!')
+            print("You need to have WoW open to get a ROI image!")
             return False
         self.dynamic_image_topleft = (window.left, window.top)
         region = (window.left, window.top, window.width, window.height)
@@ -901,7 +903,9 @@ class WoWFishBot:
             self.logger.usage_table.increment_uses()
             self.logger.usage_table.set_last_use_time()
 
-        self.ignore_blacklist = True if self.gui.blacklist_mode_toggle_input.get() == 1 else False
+        self.ignore_blacklist = (
+            True if self.gui.blacklist_mode_toggle_input.get() == 1 else False
+        )
 
         # main loop
         while (
@@ -910,7 +914,7 @@ class WoWFishBot:
             start_time = time.time()
             base_image = self.get_roi_image()
             if base_image is False:
-                print('Couldnt capture an image from WoW. Retrying in 10 seconds...')
+                print("Couldnt capture an image from WoW. Retrying in 10 seconds...")
                 time.sleep(10)
                 continue
 
@@ -1025,7 +1029,9 @@ class WoWFishBot:
                         print("-" * 50 + "\n" + "Starting fishing...")
                         self.start_fishing()
                         self.time_of_last_cast = time.time()
-                        self.predictions = []  # clear the predictions for new fishing session
+                        self.predictions = (
+                            []
+                        )  # clear the predictions for new fishing session
                     else:
                         # print("Bobber not found, but just casted...")
                         pass

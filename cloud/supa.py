@@ -31,7 +31,7 @@ def get_current_os():
 
 
 def get_system_uid():
-    un ,pcn ,cos= "NULL","NULL","NULL"
+    un, pcn, cos = "NULL", "NULL", "NULL"
 
     try:
         un = os.getlogin()
@@ -85,14 +85,17 @@ class UsersTable:
 
         out = self.supa.insert(self.table_name, user_data)
         if "'code': '23505'" in str(out):
-            if MODULE_LEVEL_PRINT:print("User already exists")
+            if MODULE_LEVEL_PRINT:
+                print("User already exists")
             return "user already exists"
 
         if "data=[{'uuid':" in str(out):
-            if MODULE_LEVEL_PRINT:print("User successfully added")
+            if MODULE_LEVEL_PRINT:
+                print("User successfully added")
             return "user successfully added"
 
-        if MODULE_LEVEL_PRINT:print("unknown response from add_user:", out)
+        if MODULE_LEVEL_PRINT:
+            print("unknown response from add_user:", out)
 
 
 class StatsTable:
@@ -116,14 +119,17 @@ class StatsTable:
         out = self.supa.insert(self.table_name, stats_data)
 
         if "'code': '22P02'" in str(out):
-            if MODULE_LEVEL_PRINT:print("Type mismatch for this attempted stats addition")
+            if MODULE_LEVEL_PRINT:
+                print("Type mismatch for this attempted stats addition")
             return
 
         if "data=[" in str(out):
-            if MODULE_LEVEL_PRINT:print("Stats added")
+            if MODULE_LEVEL_PRINT:
+                print("Stats added")
             return
 
-        if MODULE_LEVEL_PRINT:print("unexpected response from add_stats:", out)
+        if MODULE_LEVEL_PRINT:
+            print("unexpected response from add_stats:", out)
 
 
 class UsageTable:
@@ -134,7 +140,12 @@ class UsageTable:
     def get_user_usage(self, uuid):
         """Fetches the usage data for a specific user using uuid"""
         try:
-            response = self.supa.supabase.table(self.table_name).select("*").eq("uuid", uuid).execute()
+            response = (
+                self.supa.supabase.table(self.table_name)
+                .select("*")
+                .eq("uuid", uuid)
+                .execute()
+            )
             if response.data:
                 return response.data[0]  # Assuming there's only one record per uuid
             else:
@@ -156,22 +167,31 @@ class UsageTable:
             }
             out = self.supa.insert(self.table_name, usage_data)
             if "data=[" in str(out):
-                if MODULE_LEVEL_PRINT:print("New user usage added")
+                if MODULE_LEVEL_PRINT:
+                    print("New user usage added")
                 return "new user usage added"
-            if MODULE_LEVEL_PRINT:print("Unexpected response from increment_uses:", out)
+            if MODULE_LEVEL_PRINT:
+                print("Unexpected response from increment_uses:", out)
             return
 
         # If the user already exists, increment the 'starts' value
-        new_starts = user_usage['starts'] + 1
+        new_starts = user_usage["starts"] + 1
         updated_usage_data = {
             "starts": new_starts,
         }
 
-        out = self.supa.supabase.table(self.table_name).update(updated_usage_data).eq("uuid", user_uuid).execute()
+        out = (
+            self.supa.supabase.table(self.table_name)
+            .update(updated_usage_data)
+            .eq("uuid", user_uuid)
+            .execute()
+        )
         if "data=[" in str(out):
-            if MODULE_LEVEL_PRINT:print("User usage incremented")
+            if MODULE_LEVEL_PRINT:
+                print("User usage incremented")
             return "user usage incremented"
-        if MODULE_LEVEL_PRINT:print("Unexpected response from increment_uses:", out)
+        if MODULE_LEVEL_PRINT:
+            print("Unexpected response from increment_uses:", out)
 
     def set_last_use_time(self):
         """Sets the 'last_use_time' for a user"""
@@ -187,9 +207,11 @@ class UsageTable:
             }
             out = self.supa.insert(self.table_name, usage_data)
             if "data=[" in str(out):
-                if MODULE_LEVEL_PRINT:print("New user usage added")
+                if MODULE_LEVEL_PRINT:
+                    print("New user usage added")
                 return "new user usage added"
-            if MODULE_LEVEL_PRINT:print("Unexpected response from set_last_use_time:", out)
+            if MODULE_LEVEL_PRINT:
+                print("Unexpected response from set_last_use_time:", out)
             return
 
         # If the user exists, update the 'last_use_time'
@@ -197,19 +219,27 @@ class UsageTable:
             "last_use_time": time.time(),
         }
 
-        out = self.supa.supabase.table(self.table_name).update(updated_usage_data).eq("uuid", user_uuid).execute()
+        out = (
+            self.supa.supabase.table(self.table_name)
+            .update(updated_usage_data)
+            .eq("uuid", user_uuid)
+            .execute()
+        )
         if "data=[" in str(out):
-            if MODULE_LEVEL_PRINT:print("User last use time updated")
+            if MODULE_LEVEL_PRINT:
+                print("User last use time updated")
             return "user last use time updated"
-        if MODULE_LEVEL_PRINT:print("Unexpected response from set_last_use_time:", out)
-
+        if MODULE_LEVEL_PRINT:
+            print("Unexpected response from set_last_use_time:", out)
 
 
 def test():
     import random
 
-    if MODULE_LEVEL_PRINT:print("\n\n\ninserting:")
-    if MODULE_LEVEL_PRINT:print("---" * 30)
+    if MODULE_LEVEL_PRINT:
+        print("\n\n\ninserting:")
+    if MODULE_LEVEL_PRINT:
+        print("---" * 30)
 
     ut = UsersTable()
     st = StatsTable()
@@ -222,27 +252,32 @@ def test():
     ut.add_user()
     st.add_stats(runtime, reels, casts, loots)
 
-    if MODULE_LEVEL_PRINT:print("\n\n\n\n\n\nQuerying:")
-    if MODULE_LEVEL_PRINT:print("---" * 30)
+    if MODULE_LEVEL_PRINT:
+        print("\n\n\n\n\n\nQuerying:")
+    if MODULE_LEVEL_PRINT:
+        print("---" * 30)
 
     users = ut.get_users()
-    if MODULE_LEVEL_PRINT:print(f"Existing users:")
+    if MODULE_LEVEL_PRINT:
+        print(f"Existing users:")
     for user in users:
-        if MODULE_LEVEL_PRINT:print(f"\t{user['uuid']} : {user['timestamp']}")
+        if MODULE_LEVEL_PRINT:
+            print(f"\t{user['uuid']} : {user['timestamp']}")
 
     all_stats = st.get_all_stats()
-    if MODULE_LEVEL_PRINT:print(f"The stats:")
+    if MODULE_LEVEL_PRINT:
+        print(f"The stats:")
     for stat_row in all_stats:
-        if MODULE_LEVEL_PRINT:print(
-            f"\t{stat_row['uuid']} : {stat_row['runtime']}s : {stat_row['casts']} casts : {stat_row['loots']} loots : {stat_row['timestamp']}"
-        )
+        if MODULE_LEVEL_PRINT:
+            print(
+                f"\t{stat_row['uuid']} : {stat_row['runtime']}s : {stat_row['casts']} casts : {stat_row['loots']} loots : {stat_row['timestamp']}"
+            )
+
 
 def test_usage_table():
     ut = UsageTable()
     ut.increment_uses()
     ut.set_last_use_time()
-
-
 
 
 class Pickler:
@@ -253,7 +288,8 @@ class Pickler:
 
     def place(self, string: str, type: str):
         if type not in ["k", "u"]:
-            if MODULE_LEVEL_PRINT:print("invalid type for key.place()")
+            if MODULE_LEVEL_PRINT:
+                print("invalid type for key.place()")
             return
 
         if type == "k":
@@ -265,7 +301,8 @@ class Pickler:
 
     def get(self, type: str):
         if type not in ["k", "u"]:
-            if MODULE_LEVEL_PRINT:print("invalid type for key.get()")
+            if MODULE_LEVEL_PRINT:
+                print("invalid type for key.get()")
             return
 
         if type == "k":
