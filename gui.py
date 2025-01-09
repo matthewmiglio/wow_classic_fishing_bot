@@ -10,6 +10,7 @@ from PIL import Image, ImageTk
 
 from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG, DEBUG_BUTTON_VISIBLE
 from colors import gui_colors, rainbow_colors
+from move.move_gui import open_move_gui
 from constants import BLACKLIST_STRINGS
 
 GUI_WINDOW_NAME = "WoW Fishing Bot Display"
@@ -34,6 +35,9 @@ class GUI:
         self.root.title(GUI_WINDOW_NAME)
 
         self.root.configure(bg=gui_colors["darkmode_background_1"])
+
+        self.root.bind('<F10>', self.on_run_gui_hotkey_press)
+        # self.root.bind('<Control-r>', self.on_run_gui_hotkey_press)
 
         # Create frames for images and stats
         self.image_frame = tk.Frame(root, bg=gui_colors["darkmode_background_1"])
@@ -177,25 +181,31 @@ class GUI:
         )
         self.start_button.pack(side=tk.LEFT, padx=0, pady=5)
 
-        #stop button
+        # stop button
         self.stop_button = ttk.Button(
             root, text="Stop", command=self.stop_bot, style="Stop.TButton"
         )
         self.stop_button.pack(side=tk.LEFT, padx=0, pady=5)
 
-        #debug button
+        # debug button
         if DEBUG_BUTTON_VISIBLE is True:
             self.debug_button = ttk.Button(
-                root, text="Debug", command=self.start_debug_mode, style="Start_debug.TButton"
+                root,
+                text="Debug",
+                command=self.start_debug_mode,
+                style="Start_debug.TButton",
             )
             self.debug_button.pack(side=tk.LEFT, padx=0, pady=5)
 
-        #styling for buttons
+        # styling for buttons
         style = ttk.Style()
         style.configure("Start.TButton", background="green", foreground="green")
         style.configure("Stop.TButton", background="red", foreground="red")
-        style.configure("Edit_Blacklist.TButton", background="black", foreground="black")
-        if DEBUG_BUTTON_VISIBLE is True: style.configure("Start_debug.TButton", background="blue", foreground="blue")
+        style.configure(
+            "Edit_Blacklist.TButton", background="black", foreground="black"
+        )
+        if DEBUG_BUTTON_VISIBLE is True:
+            style.configure("Start_debug.TButton", background="blue", foreground="blue")
 
         # Create the "Open Blacklist Settings" button
         self.blacklist_mode_toggle_input = tk.IntVar()
@@ -215,7 +225,6 @@ class GUI:
                 foreground=gui_colors["darkmode_foreground_1"],
             )
 
-
             self.disable_blacklist_checkbox = ttk.Checkbutton(
                 root,
                 text="Disable Blacklist",
@@ -226,6 +235,9 @@ class GUI:
             self.disable_blacklist_checkbox.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.bot = None  # Reference to the bot
+
+    def on_run_gui_hotkey_press(self,event):
+        open_move_gui()
 
     def configure_graph(self):
         """Configure the aesthetics and settings of the graph."""
@@ -285,15 +297,13 @@ class GUI:
         # for i, fish in enumerate(fish_counts):
         #     colors.append(rainbow_colors[i % len(rainbow_colors)])
 
-
         bar_colors = []
         for fish_name in fish_counts.keys():
             if fish_name not in self.fish_colors.keys():
                 this_random_bar_color = random.choice(rainbow_colors)
-                self.fish_colors[fish_name]=this_random_bar_color
+                self.fish_colors[fish_name] = this_random_bar_color
 
             bar_colors.append(self.fish_colors[fish_name])
-
 
         # Plot the new data with assigned colors
         bars = self.ax.bar(fish_counts.keys(), fish_counts.values(), color=bar_colors)
