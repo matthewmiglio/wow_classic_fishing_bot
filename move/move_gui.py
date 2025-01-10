@@ -23,6 +23,7 @@ def open_move_gui():
 
         if selected_option == "Gedgetzan inn to Tanaris shore":
             print("Running to tanaris fish spot...")
+            print('Tanaris run is unfinished! Please complete this later!!! It works half way')
             gadgetzan_inn_to_tanaris_shore()
             print("Done running to Tanaris shore spot")
         elif selected_option == "Ratchet inn chair to WC entrance":

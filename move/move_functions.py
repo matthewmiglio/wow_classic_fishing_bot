@@ -400,52 +400,29 @@ def gadgetzan_inn_to_tanaris_shore():
     left(3)
     forward_left(3)
 
-    for _ in range(5):
-        forward(1)
-        jump()
+def swim(duration,direction):
+    direction2key = {
+        'left':'q',
+        'forward':'w',
+        'back':'s',
+        'right':'e',
+    }
 
-    for _ in range(5):
-        left(2)
-        jump()
+    jump_key = 'space'
 
-    for _ in range(5):
-        forward(2)
-        jump()
+    jump_every = 1#s
 
-    for _ in range(7):
-        left(2)
-        jump()
+    pyautogui.keyDown(direction2key[direction])
+    time_of_last_jump = time.time()
+    start_time = time.time()
+    while time.time() - start_time < duration:
+        if time.time() - time_of_last_jump > jump_every:
+            pyautogui.press(jump_key)
+            time_of_last_jump = time.time()
 
-    for _ in range(3):
-        forward_left(2)
-        jump()
+    pyautogui.keyUp(direction2key[direction])
 
-    for _ in range(5):
-        left(2)
-        jump()
-
-    for _ in range(5):
-        left(2)
-        jump()
-
-    for _ in range(10):
-        left(2)
-        jump()
-
-    for _ in range(7):
-        left(2)
-        jump()
-
-    backward(5)
-    for _ in range(3):
-        jump()
-
-    backward(5)
-    for _ in range(3):
-        jump()
-
-    backward(4)
 
 
 if __name__ == "__main__":
-    pass
+    gadgetzan_inn_to_tanaris_shore()
