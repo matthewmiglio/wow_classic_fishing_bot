@@ -10,29 +10,31 @@ jobs:
     runs-on: windows-latest  # You can change this to ubuntu-latest or macos-latest if needed
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'  # Specify your required Python version
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'  # Specify your required Python version
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt  # Assuming you have a requirements.txt file
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Assuming you have a requirements.txt file
 
-    - name: Run the build script
-      run: |
-        python build.py  # This will execute your build script
+      - name: Run the build script
+        run: |
+          python build.py  # This will execute your build script
 
-    - name: Clean up
-      run: |
-        python -c 'import shutil; shutil.rmtree("build")'  # Clean up the build folder after the build
+      - name: Clean up
+        run: |
+          if [ -d "build" ]; then
+            python -c 'import shutil; shutil.rmtree("build")'
+          fi
 
-    - name: Upload build artifacts (optional)
-      uses: actions/upload-artifact@v3
-      with:
-        name: build-artifact
-        path: build  # Upload the build folder as an artifact, if needed
+      - name: Upload build artifacts (optional)
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifact
+          path: build  # Upload the build folder as an artifact, if needed
