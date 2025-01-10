@@ -165,10 +165,6 @@ def main():
         else:
             print(f"\t{k}: {v}")
 
-    if input("OK to build (y/n): ").lower() != "y":
-        print("Exiting")
-        return
-
     exe = Executable(
         script=ENTRY_POINT,
         base="Win32GUI" if GUI else None,
@@ -203,10 +199,13 @@ def delete_build_folder():
     print(build_folder_path)
     shutil.rmtree(build_folder_path)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     start_time = time.time()
     main()
     delete_build_folder()
     end_time = time.time()
-    time_taken_readable_hms = str(datetime.timedelta(seconds=int(end_time - start_time)))
-    print(f'Built in {time_taken_readable_hms}')
+    time_taken_readable_hms = str(
+        datetime.timedelta(seconds=int(end_time - start_time))
+    )
+    print(f"Built in {time_taken_readable_hms}")
