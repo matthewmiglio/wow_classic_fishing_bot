@@ -29,9 +29,9 @@ jobs:
 
       - name: Clean up
         run: |
-          if [ -d "build" ]; then
-            python -c 'import shutil; shutil.rmtree("build")'
-          fi
+          if (Test-Path "build") {
+            Remove-Item -Recurse -Force "build"
+          }
 
       - name: Upload build artifacts (optional)
         uses: actions/upload-artifact@v3
