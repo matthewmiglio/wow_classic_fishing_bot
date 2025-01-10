@@ -4,3 +4,5 @@
 build
 dist
 !requirements.txt
+deploy_key
+deploy_key.pub
