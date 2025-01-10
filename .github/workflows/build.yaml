@@ -41,7 +41,7 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
-        uses: gh-actions/create-release@v1
+        uses: actions/create-release@v1  # Corrected action reference
         with:
           tag_name: ${{ github.ref }}  # The tag name that triggered the workflow
           release_name: Release ${{ github.ref }}  # The release name (can be customized)
