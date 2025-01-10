@@ -203,7 +203,7 @@ def delete_build_folder():
 if __name__ == "__main__":
     start_time = time.time()
     main()
-    delete_build_folder()
+    # delete_build_folder()
     end_time = time.time()
     time_taken_readable_hms = str(
         datetime.timedelta(seconds=int(end_time - start_time))
