@@ -18,14 +18,18 @@ jobs:
         with:
           python-version: '3.x'  # Specify your required Python version
 
-      - name: Install dependencies
+      - name: Install Poetry
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt  # Assuming you have a requirements.txt file
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "::add-path::${HOME}/.local/bin"
 
-      - name: Run the build script
+      - name: Install dependencies with Poetry
         run: |
-          python build.py  # This will execute your build script
+          poetry install  # This will install dependencies listed in pyproject.toml
+
+      - name: Run the build script with Poetry
+        run: |
+          poetry run python build.py  # This will run your build script under Poetry's environment
 
       - name: Clean up
         run: |
