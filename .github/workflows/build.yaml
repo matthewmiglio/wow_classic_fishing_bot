@@ -26,7 +26,6 @@ jobs:
           cache: "poetry"
       - name: Install package and dependencies
         run: |
-          cd src
           poetry env use '${{ steps.pysetup.outputs.python-path }}'
           poetry install --with build --without dev
       - name: Build package
