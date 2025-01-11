@@ -31,7 +31,7 @@ jobs:
 
       - name: Install dependencies with Poetry
         run: |
-          poetry install --no-dev  # Install dependencies excluding dev dependencies
+          poetry install
 
       - name: Run build script with Poetry
         run: |
