@@ -35,7 +35,7 @@ jobs:
 
       - name: Run build script with Poetry
         run: |
-          poetry run python build.py  # Run your build script under Poetry's environment
+          poetry run python build.py build  # Run your build script with 'build' argument
 
       - name: Build package
         run: |
