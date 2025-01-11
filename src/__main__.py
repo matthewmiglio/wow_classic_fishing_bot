@@ -1,23 +1,5 @@
 print("Starting python...")
 
-from _FEATURE_FLAGS import (
-    BLACKLIST_FEATURE_FLAG,
-    CLOUD_STATS_FEATURE,
-    SAVE_IMAGES_FEATURE,
-)
-from inference.find_bobber import BobberDetector
-from inference.splash_classifier import SplashClassifier
-from logger import Logger
-from looter import LootClassifier
-from constants import (
-    WOW_WINDOW_NAME,
-    TOP_SAVE_DIR,
-    WOW_CLIENT_RESIZE,
-    DISPLAY_IMAGE_SIZE,
-)
-from debug import collect_all_system_info, get_folder_size
-from gui import GUI, GUI_WINDOW_NAME
-
 import os
 import random
 import threading
@@ -30,8 +12,19 @@ import pyautogui
 import pygetwindow
 from PIL import Image
 
-
-
+from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG, CLOUD_STATS_FEATURE
+from constants import (
+    DISPLAY_IMAGE_SIZE,
+    TOP_SAVE_DIR,
+    WOW_CLIENT_RESIZE,
+    WOW_WINDOW_NAME,
+)
+from debug import collect_all_system_info, get_folder_size
+from gui import GUI, GUI_WINDOW_NAME
+from inference.find_bobber import BobberDetector
+from inference.splash_classifier import SplashClassifier
+from logger import Logger
+from looter import LootClassifier
 
 
 def show_popup(display_text, title_text):
@@ -121,6 +114,7 @@ def run_bot_with_gui():
     bot = WoWFishBot(bot_gui, save_images=True)
     bot_gui.set_bot(bot)
     bot_root.mainloop()
+    print(f"Exited gui.mainloop()")
 
 
 def bgr2rgb(img):
@@ -169,10 +163,10 @@ class WoWFishBot:
 
         # ai models
         self.bobber_detector = BobberDetector(
-            r"inference\bobber_models\bobber_finder7.0.onnx"
+            r"src\inference\bobber_models\bobber_finder7.0.onnx"
         )
         self.splash_classifier = SplashClassifier(
-            r"inference\splash_models\splash_classifier6.0.onnx"
+            r"src\inference\splash_models\splash_classifier6.0.onnx"
         )
 
         # saving images
@@ -314,7 +308,6 @@ class WoWFishBot:
         pyautogui.press("z")
         self.casts += 1
         self.update_gui("casts", self.casts)
-        self.logger.add_to_fishing_log("attempt")
 
     def click_bobber_bbox(self, bbox):
         random_deviation = 10
@@ -515,7 +508,6 @@ class WoWFishBot:
         if should_add_reel() is True:
             self.time_of_last_reel = time.time()
             self.reels += 1
-            self.logger.add_to_fishing_log("success")
             self.update_gui("reels", self.reels)
 
     def make_image(self, text):
@@ -599,55 +591,6 @@ class WoWFishBot:
 
         t = threading.Thread(target=_to_wrap)
         t.start()
-
-    def save_bobber_roi_image(self, img):
-        if SAVE_IMAGES_FEATURE is not True:
-            return
-
-        uid = "roi_" + str(time.time()).replace(".", "") + ".png"
-        path = os.path.join(self.save_images_dir, "bobber_roi", uid)
-
-        img = Image.fromarray(img)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        self.save_image_to_save_images(path, img)
-
-    def save_splash_images(self, bbox, img, is_splash) -> bool:
-        if SAVE_IMAGES_FEATURE is not True:
-            return
-
-        uid = str(time.time()).replace(".", "") + ".png"
-        path = os.path.join(
-            self.save_images_dir,
-            "splash" if "splash" in is_splash else "not_splash",
-            uid,
-        )
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        # convert it from BGR to RGB
-        img = numpy_img_bgr_to_rgb(img)
-        img = Image.fromarray(img)
-        bbox = xywh2xyxy(*bbox)
-        img = img.crop(bbox)
-        self.save_image_to_save_images(path, img)
-        return True
-
-    def save_image_to_save_images(self, path: str, image: Image.Image):
-        if SAVE_IMAGES_FEATURE is not True:
-            return
-
-        # make the dir if it doesnt exist
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-
-        # if there more than 1000 images in the folder, delete a random one
-        if len(os.listdir(os.path.dirname(path))) > self.save_images_folder_file_limit:
-            os.remove(
-                os.path.join(
-                    os.path.dirname(path),
-                    np.random.choice(os.listdir(os.path.dirname(path))),
-                )
-            )
-
-        # save this image
-        image.save(path)
 
     # image stuff
     def get_roi_image(self):
@@ -917,9 +860,6 @@ class WoWFishBot:
                 time.sleep(10)
                 continue
 
-            if self.save_splash_images_toggle:
-                self.save_bobber_roi_image(base_image)
-
             self.update_gui("raw_image", base_image)
 
             bbox, score = self.bobber_detector.detect_object_in_image(
@@ -995,15 +935,8 @@ class WoWFishBot:
                             stat="loots", value=len(self.loot_classifier.history)
                         )
 
-                        # update logger
-                        self.logger.add_to_loot_log(loot)
-
                         # update loot history
                         self.update_loot_history_stats()
-
-                # if we want to save the splash images
-                if self.save_splash_images_toggle:
-                    self.save_splash_images(bbox, base_image, is_splash)
 
             # if none detected at all
             else:
@@ -1042,6 +975,3 @@ class WoWFishBot:
 
 if __name__ == "__main__":
     run_bot_with_gui()
-
-    # wfb = WoWFishBot(None, save_images=False)
-    # roi = wfb.get_roi_image()

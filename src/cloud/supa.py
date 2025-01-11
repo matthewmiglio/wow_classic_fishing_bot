@@ -282,9 +282,9 @@ def test_usage_table():
 
 class Pickler:
     def __init__(self):
-        self.kfp = os.path.join(os.getcwd(), "cloud", "data", "XbsgAJG8sbA2.pkl")
-        self.ufp = os.path.join(os.getcwd(), "cloud", "data", "iKnsfabt73hB.pkl")
-        os.makedirs(os.path.join(os.getcwd(), "cloud", "data"), exist_ok=True)
+        self.kfp = os.path.join(os.getcwd(), 'src',"cloud", "data", "XbsgAJG8sbA2.pkl")
+        self.ufp = os.path.join(os.getcwd(), 'src',"cloud", "data", "iKnsfabt73hB.pkl")
+        os.makedirs(os.path.join(os.getcwd(), 'src',"cloud", "data"), exist_ok=True)
 
     def place(self, string: str, type: str):
         if type not in ["k", "u"]:

@@ -509,3 +509,9 @@ class GUI:
     def close_blacklist_gui(self):
         """Close the blacklist settings window."""
         self.blacklist_window.destroy()
+
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    gui = GUI(root)
+    root.mainloop()
