@@ -175,21 +175,15 @@ def main():
         copyright=COPYRIGHT,
     )
 
-    try:
-        setup(
-            name=PROJECT_NAME,
-            description=DESCRIPTION,
-            executables=[exe],
-            options={
-                "bdist_msi": bdist_msi_options,
-                "build_exe": build_exe_options,
-            },
-        )
-    except SystemExit:
-        print(
-            '\nError! This is intended to be run with "poetry run python build.py bdist_msi"'
-        )
-        return
+    setup(
+        name=PROJECT_NAME,
+        description=DESCRIPTION,
+        executables=[exe],
+        options={
+            "bdist_msi": bdist_msi_options,
+            "build_exe": build_exe_options,
+        },
+    )
 
 
 def delete_build_folder():
