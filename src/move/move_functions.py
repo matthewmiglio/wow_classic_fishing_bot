@@ -357,48 +357,66 @@ def gadgetzan_inn_to_tanaris_shore():
     orientate_wow()
     time.sleep(2)
 
+    #inn to outside
     backward(4)
     left(4)
     backward_left(9)
     backward(0.5)
     left(6)
 
+    #buffs n shit
     shield()
     time.sleep(2)
     iceblock()
     time.sleep(2)
     mount()
 
+    #outside to shore
     forward(9)
     forward_left(2)
     forward(4)
-
     forward(2)
     forward_left(3)
-
     forward_left(3)
     forward(3)
     forward(3)
     forward_left(3)
     forward(9)
     forward(9)
-
     forward_left(2)
     forward(4)
     forward(9)
-
     forward_left(9)
     left(2)
     forward(9)
     forward_left(9)
     left(4)
     left(4)
-
     left(1)
     forward_left(3)
     mount()
     left(3)
     forward_left(3)
+
+    #water to rocks
+    for i in range(7):
+        left(2)
+        jump()
+    for i in range(2):
+        backward(2)
+        jump()
+    for i in range(3):
+        left(2)
+        jump()
+    for i in range(7):
+        backward(2)
+        jump()
+    for i in range(5):
+        backward(2)
+        jump()
+    for i in range(3):
+        backward(2)
+        jump()
 
 def swim(duration,direction):
     direction2key = {
