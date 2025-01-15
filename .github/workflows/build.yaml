@@ -6,7 +6,7 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write  # Necessary to create releases and upload assets
+  contents: write # Necessary to create releases and upload assets
 
 jobs:
   build-and-release:
@@ -14,52 +14,37 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # Checkout the repository
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@master
+      - name: Install Poetry
+        run: |
+          pipx install "poetry>=1.7.0"
+          pipx install poethepoet
 
-      # Set up Python
       - name: Set up Python
+        id: pysetup
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
           cache: "poetry"
 
-      # Install Poetry and Poethepoet
-      - name: Install Poetry and Tools
+      - name: Install package and dependencies
         run: |
-          pipx install "poetry>=1.7.0"
-          pipx install poethepoet
-
-      # adds pipx binaries to PATH
-      - name: Ensure pipx binaries are in PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-
-      # Install dependencies and prepare the environment
-      - name: Install Dependencies
-        run: |
+          cd src
+          poetry env use '${{ steps.pysetup.outputs.python-path }}'
           poetry install
 
-      #verify installation of pipx and poetry
-      - name: Verify pipx and poetry installation
+      - name: Build package
         run: |
-          pipx --version
-          poetry --version
-
-      # Build the package
-      - name: Build MSI Package
-        run: |
-          poe build-dist
+          cd src
+          poe build-dist -v ${{github.ref_name}}
         env:
           BUILD_SECRET: ${{ secrets.BUILD_SECRET }}
 
-      # Publish the release to GitHub
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        id: release
         with:
-          files: |
-            src/dist/matt-fishbot-*.msi
+          prerelease: ${{startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'rc')}}
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            ./src/dist/*.msi
