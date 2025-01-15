@@ -31,10 +31,21 @@ jobs:
           pipx install "poetry>=1.7.0"
           pipx install poethepoet
 
+      # adds pipx binaries to PATH
+      - name: Ensure pipx binaries are in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+
       # Install dependencies and prepare the environment
       - name: Install Dependencies
         run: |
           poetry install
+
+      #verify installation of pipx and poetry
+      - name: Verify pipx and poetry installation
+        run: |
+          pipx --version
+          poetry --version
 
       # Build the package
       - name: Build MSI Package

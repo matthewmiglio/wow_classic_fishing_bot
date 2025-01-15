@@ -59,7 +59,7 @@ def main():
     DESCRIPTION = "Automated WoW Fishing Bot"
     KEYWORDS = "World of Warcraft Classic, Fishing, Bot"
     COPYRIGHT = "2024 Matthew Miglio"
-    ENTRY_POINT = "bot.py"
+    ENTRY_POINT = "src/__main__.py"
     GUI = False
     UPGRADE_CODE = "{3f9f4225-8af4-4024-97fd-9a2329638315}"
     VERSION = f"v0.0.{this_version_index}"
