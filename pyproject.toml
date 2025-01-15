@@ -5,6 +5,10 @@ description = ""
 authors = ["Matt Main_PC <matmigg0804@gmail.com>"]
 readme = "README.md"
 
+packages = [
+    { include = "src" }
+]
+
 [tool.poetry.dependencies]
 python = "^3.11"
 pyautogui = "^0.9.54"
