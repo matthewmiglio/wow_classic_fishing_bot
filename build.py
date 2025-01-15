@@ -2,34 +2,25 @@ import time
 import shutil
 import os
 import datetime
+import argparse
 from cx_Freeze import Executable, setup
 
 
-class Versioning:
-    def __init__(self):
-        self.version_file_path = "version.txt"
-        self.default_version = 10
+def parse_arguments():
+    """Parse and validate command-line arguments."""
+    parser = argparse.ArgumentParser(description="Build script for WoW Fishing Bot")
+    parser.add_argument(
+        "-v", "--version",
+        help="Version number in the format vX.Y.Z (e.g., v0.1.22)",
+        required=True
+    )
+    args = parser.parse_args()
 
-    def read_version(self):
-        try:
-            with open(self.version_file_path, "r") as f:
-                version_index = int(f.read().strip())
-                return version_index
-        except:
-            with open(self.version_file_path, "w") as f:
-                f.write(str(self.default_version))
-                return self.default_version
+    # Validate version format
+    if not args.version.startswith('v') or not args.version[1:].replace('.', '').isdigit():
+        raise ValueError(f"Invalid version format: {args.version}. Expected format: vX.Y.Z")
 
-    def get_version(self):
-        v = self.read_version()
-        self.increment_version()
-        return v
-
-    def increment_version(self):
-        version_index = self.read_version()
-        with open(self.version_file_path, "w") as f:
-            f.write(str(version_index + 1))
-        return version_index + 1
+    return args.version
 
 
 def get_include_files(top_dir, skip_folders, skip_file_types):
@@ -52,9 +43,8 @@ def get_include_files(top_dir, skip_folders, skip_file_types):
 
 
 def main():
-    versioning = Versioning()
-    this_version_index = versioning.get_version()
-    PROJECT_NAME = f"matt-fishbot-{this_version_index}"
+    version = parse_arguments()
+    PROJECT_NAME = f"matt-fishbot-{version}"
     AUTHOR = "Matthew Miglio"
     DESCRIPTION = "Automated WoW Fishing Bot"
     KEYWORDS = "World of Warcraft Classic, Fishing, Bot"
@@ -62,7 +52,6 @@ def main():
     ENTRY_POINT = "src/__main__.py"
     GUI = False
     UPGRADE_CODE = "{3f9f4225-8af4-4024-97fd-9a2329638315}"
-    VERSION = f"v0.0.{this_version_index}"
 
     dist_dir = os.path.join(os.getcwd(), "dist")
 
@@ -90,7 +79,7 @@ def main():
         "build.py",
     ]
 
-    # Collect the files to include, including the .onnx models with the new format
+    # Collect the files to include
     files_to_include = [
         (path, os.path.relpath(path, os.getcwd()))  # Relative paths for other files
         for path in get_include_files(
@@ -144,7 +133,7 @@ def main():
         script=ENTRY_POINT,
         base="Win32GUI" if GUI else None,
         uac_admin=True,
-        shortcut_name=f"{PROJECT_NAME} {VERSION}",
+        shortcut_name=f"{PROJECT_NAME} {version}",
         shortcut_dir="DesktopFolder",
         target_name=f"{PROJECT_NAME}.exe",
         copyright=COPYRIGHT,
