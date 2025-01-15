@@ -1,21 +1,54 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write  # Necessary to create releases and upload assets
+
 jobs:
-  build:
+  build-and-release:
+    name: Build and Release Package
     runs-on: windows-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      # Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
+      # Set up Python
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.11"
+          cache: "poetry"
 
-      - name: Install dependencies
-        run: pip install poetry poe
-
-      - name: Build package
+      # Install Poetry and Poethepoet
+      - name: Install Poetry and Tools
         run: |
-          cd src
+          pipx install "poetry>=1.7.0"
+          pipx install poethepoet
+
+      # Install dependencies and prepare the environment
+      - name: Install Dependencies
+        run: |
+          poetry install
+
+      # Build the package
+      - name: Build MSI Package
+        run: |
           poe build-dist
         env:
-          build_secret: ${{ secrets.BUILD_SECRET }}
+          BUILD_SECRET: ${{ secrets.BUILD_SECRET }}
+
+      # Publish the release to GitHub
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            src/dist/matt-fishbot-*.msi
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

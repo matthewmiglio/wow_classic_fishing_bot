@@ -64,8 +64,9 @@ def main():
     UPGRADE_CODE = "{3f9f4225-8af4-4024-97fd-9a2329638315}"
     VERSION = f"v0.0.{this_version_index}"
 
-    # Collect files for inclusion
+    dist_dir = os.path.join(os.getcwd(), "dist")
 
+    # Collect files for inclusion
     skip_file_types = [
         ".txt",
         ".png",
@@ -102,8 +103,9 @@ def main():
 
     build_exe_options = {
         "excludes": ["test", "setuptools"],
-        "include_files": files_to_include,  # Use the tuple format: (source, target)
+        "include_files": files_to_include,
         "include_msvcr": True,
+        "build_exe": dist_dir,  # Place build output in the dist folder
     }
 
     bdist_msi_options = {

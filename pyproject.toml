@@ -29,7 +29,8 @@ psutil = "^6.1.1"
 # poethepoet = "^0.30.0"
 
 [tool.poe.tasks]
-build-dist = "python -m build"
+build-dist = "python build.py"
+
 
 [build-system]
 requires = ["poetry-core"]
