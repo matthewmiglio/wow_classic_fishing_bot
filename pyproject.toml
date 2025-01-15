@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "wow-fishing"
 version = "0.1.0"
-description = ""
-authors = ["Matt Main_PC <matmigg0804@gmail.com>"]
+description = "Automated WoW Classic Fishing"
+authors = ["Matthew Miglio <matthew@pyclashbot.app>",]
 readme = "README.md"
 
 packages = [
@@ -23,6 +23,13 @@ screeninfo = "^0.8.1"
 supabase = "^2.11.0"
 psutil = "^6.1.1"
 
+
+# [tool.poetry.group.build.dependencies]
+# cx-freeze = "^7.2.5"
+# poethepoet = "^0.30.0"
+
+[tool.poe.tasks]
+build-dist = "python -m build --sdist --wheel"
 
 [build-system]
 requires = ["poetry-core"]
