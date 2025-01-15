@@ -51,22 +51,6 @@ def get_include_files(top_dir, skip_folders, skip_file_types):
     return file_paths
 
 
-def get_onnx_models():
-    search_dir = os.getcwd()
-    print(f"Searching {search_dir} for onnx files...")
-    onnx_files = []
-
-    for root, dirs, files in os.walk(os.getcwd()):
-        for file in files:
-            if file.endswith(".onnx"):
-                onnx_files.append(os.path.join(root, file))
-
-    print(f"Found {len(onnx_files)} onnx files in this dir: {search_dir}")
-    for onnx_file in onnx_files:
-        print(f"\t{onnx_file}")
-    return onnx_files
-
-
 def main():
     versioning = Versioning()
     this_version_index = versioning.get_version()
@@ -93,7 +77,6 @@ def main():
         ".gitignore",
         ".lock",
         ".toml",
-        ".onnx",
     ]
 
     skip_folders = [
@@ -115,7 +98,7 @@ def main():
             skip_file_types=skip_file_types,
         )
         if os.path.basename(path) not in skip_files
-    ] + get_most_recent_onnx_files()
+    ]
 
     build_exe_options = {
         "excludes": ["test", "setuptools"],
