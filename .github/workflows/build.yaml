@@ -1,50 +1,74 @@
-name: Build and Release
+name: Build Windows Package
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*.*.*"  # This will trigger the build on version tags like v1.1.1
 
 permissions:
-  contents: write # Necessary to create releases and upload assets
+  contents: write  # Necessary for creating releases and uploading assets
 
 jobs:
   build-and-release:
     name: Build and Release Package
-    runs-on: windows-latest
+    runs-on: windows-latest  # Use Windows runner for building the package
 
     steps:
-      - uses: actions/checkout@master
+      # Step to checkout the code from the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Step to install Poetry and poethepoet (for managing dependencies)
       - name: Install Poetry
         run: |
           pipx install "poetry>=1.7.0"
           pipx install poethepoet
 
+      # Step to set up Python environment
       - name: Set up Python
         id: pysetup
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
-          cache: "poetry"
+          python-version: "3.11"  # Change this to your preferred Python version
+          cache: "poetry"  # Cache poetry dependencies to speed up subsequent runs
 
+      # Step to install the project dependencies using Poetry
       - name: Install package and dependencies
         run: |
-          cd src
-          poetry env use '${{ steps.pysetup.outputs.python-path }}'
-          poetry install
+          poetry install --no-root  # Install the dependencies for the package
+          poetry install --with build  # Make sure to install dependencies for building (like cx-Freeze)
 
+      # Step to build the project using your custom build script
       - name: Build package
         run: |
-          cd src
-          poe build-dist -v ${{github.ref_name}}
-        env:
-          BUILD_SECRET: ${{ secrets.BUILD_SECRET }}
+          poetry run poe build-dist -v ${{ github.ref_name }}  # Run your build script using `poetry run`
 
+      # Step to create and publish the release
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         id: release
         with:
-          prerelease: ${{startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'rc')}}
+          prerelease: ${{ startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'rc') }}  # Check if it's a prerelease
           generate_release_notes: true
           files: |
-            ./src/dist/*.msi
+            ./src/dist/*.msi  # Adjust the path to where your MSI is output
+
+      # Optional: Trigger a Discord webhook for release notifications
+      - name: Trigger Discord Webhook
+        run: |
+          if ($${{startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'rc')}}) {
+            $json = @{
+                title = "New Pre-release! ${{github.ref_name}}"
+                description = "Click to view changes and download"
+                url = "${{ steps.release.outputs.url }}"
+            } | ConvertTo-Json
+            Invoke-RestMethod -Method Post -Uri "https://www.pyclashbot.app/api/webhook/release/prerelease?code=${{ secrets.DISCORD_WEBHOOK_CODE }}" -ContentType 'application/json' -Body $json
+          } else {
+            $json = @{
+                title = "New Release! ${{github.ref_name}}"
+                description = "Click to view changes and download"
+                url = "${{ steps.release.outputs.url }}"
+            } | ConvertTo-Json
+            Invoke-RestMethod -Method Post -Uri "https://www.pyclashbot.app/api/webhook/release?code=${{ secrets.DISCORD_WEBHOOK_CODE }}" -ContentType 'application/json' -Body $json
+          }
+        shell: powershell  # PowerShell is used for the webhook

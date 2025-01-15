@@ -82,17 +82,15 @@ if __name__ == "__main__":
     file_tree_top_dir = os.getcwd()
 
     files_to_print = [
-        r'H:\my_files\my_programs\wow_classic_fishing_bot\build.py',
-        r'H:\my_files\my_programs\wow_classic_fishing_bot\.github\workflows\build.yaml',
-        r'H:\my_files\my_programs\wow_classic_fishing_bot\pyproject.toml',
-
+        r"H:\my_files\my_programs\wow_classic_fishing_bot\pyproject.toml",
+        r"H:\my_files\my_programs\wow_classic_fishing_bot\.github\workflows\build.yaml",
     ]
     ignore_folders = [
         "dist",
         "data_export",
         "logs",
         "save_images",
-        '.git',
+        ".git",
     ]
     files_to_ignore = [
         "settings.txt",
