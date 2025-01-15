@@ -12,7 +12,11 @@ import pyautogui
 import pygetwindow
 from PIL import Image
 
-from _FEATURE_FLAGS import BLACKLIST_FEATURE_FLAG, CLOUD_STATS_FEATURE
+from _FEATURE_FLAGS import (
+    BLACKLIST_FEATURE_FLAG,
+    CLOUD_STATS_FEATURE,
+    MULTI_BOBBER_MODEL,
+)
 from constants import (
     DISPLAY_IMAGE_SIZE,
     TOP_SAVE_DIR,
@@ -21,7 +25,7 @@ from constants import (
 )
 from debug import collect_all_system_info, get_folder_size
 from gui import GUI, GUI_WINDOW_NAME
-from inference.find_bobber import BobberDetector
+from inference.find_bobber import BobberDetector, MultiBobberDetector
 from inference.splash_classifier import SplashClassifier
 from logger import Logger
 from looter import LootClassifier
@@ -121,11 +125,22 @@ def bgr2rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
+def get_all_bobber_models():
+    path = os.path.join(os.getcwd(), "src", "inference", "bobber_models")
+    print(f"Searching this path for the onnx models", path)
+
+    model_paths = [
+        os.path.join(path, f) for f in os.listdir(path) if f.endswith(".onnx")
+    ]
+
+    return model_paths
+
+
 class WoWFishBot:
     MIN_CONFIDENCE_FOR_BOBBER_DETECTION = (
         -1
     )  # determined in the bobber model's non max suppression
-    CAST_TIMEOUT = 7  # s
+    CAST_TIMEOUT = 4  # s
     BOBBER_ROI_IMAGE_RESIZE = 640
 
     def __init__(self, gui, save_images=False):
@@ -162,8 +177,10 @@ class WoWFishBot:
         self.wow_orientation_thread()
 
         # ai models
-        self.bobber_detector = BobberDetector(
-            r"src\inference\bobber_models\bobber_finder7.0.onnx"
+        self.bobber_detector = (
+            BobberDetector(r"src\inference\bobber_models\bobber_finder8.0.onnx")
+            if MULTI_BOBBER_MODEL is not True
+            else MultiBobberDetector(get_all_bobber_models())
         )
         self.splash_classifier = SplashClassifier(
             r"src\inference\splash_models\splash_classifier6.0.onnx"
@@ -863,17 +880,8 @@ class WoWFishBot:
             self.update_gui("raw_image", base_image)
 
             bbox, score = self.bobber_detector.detect_object_in_image(
-                base_image, draw_result=False
+                base_image,
             )
-
-            # update cloud stats
-            # if self.logger.should_cloud_update():
-            #     self.logger.stats_table.add_stats(
-            #         runtime=self.time_running,
-            #         reels=self.reels,
-            #         casts=self.casts,
-            #         loots=len(self.loot_classifier.history),
-            #     )
 
             # if a bobber detected
             if score >= self.MIN_CONFIDENCE_FOR_BOBBER_DETECTION and bbox != []:

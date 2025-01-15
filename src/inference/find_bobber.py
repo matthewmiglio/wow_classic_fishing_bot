@@ -1,13 +1,124 @@
 print("Initalizing bobber detector model...")
-import torch
 import cv2
 import numpy as np
 import onnxruntime
+import torch
+
+
+class MultiBobberDetector:
+    def __init__(self, model_paths: list[str]):
+        self.bds = [BobberDetector(model_path) for model_path in model_paths]
+        self.verbose = False
+
+    def stretch_bbox(self, bbox, prev_image_width, new_image_width):
+        normalized_bbox = [i / prev_image_width for i in bbox]
+        new_bbox = [int(i * new_image_width) for i in normalized_bbox]
+        return new_bbox
+
+    def normalize_bbox(self, bbox, img_width):
+        normalized_bbox = [i / img_width for i in bbox]
+        return normalized_bbox
+
+    def denormalize_bbox(self, bbox, img_width):
+        denormalized_bbox = [i * img_width for i in bbox]
+        return denormalized_bbox
+
+    def get_avg_bbox(self, bboxes):
+        if not bboxes:  # If bboxes is empty, return an empty list
+            return []
+
+        # Convert bboxes to a NumPy array for faster processing
+        bboxes = np.array(bboxes)
+
+        # Compute the average bbox by averaging along the 0th axis (rows)
+        avg_bbox = np.mean(bboxes, axis=0)
+
+        # Convert the average bounding box values to integers and return as a list
+        return [int(coord) for coord in avg_bbox]
+
+    def print_bbox(self, bbox, score):
+        def format_score(score):
+            score = score * 100
+            score = round(score, 2)
+            score = f"{score}%"
+            return score
+
+        if bbox == []:
+            print(" x " * 30)
+            return
+
+        s = ""
+        for i in bbox:
+            s += f"{round(i,2)}, "
+        s = s[:-2]
+        s += f" score: {format_score(score)}"
+        print(s)
+
+    def bboxes_disagree(self, bboxes):
+
+        difference_threshold = 45  # pixels
+        all_center_xs = [bbox[0] for bbox in bboxes]
+        all_center_ys = [bbox[1] for bbox in bboxes]
+
+        if max(all_center_xs) - min(all_center_xs) > difference_threshold:
+            return True
+
+        if max(all_center_ys) - min(all_center_ys) > difference_threshold:
+            return True
+
+        return False
+
+    def detect_object_in_image(self, img):
+        if self.verbose:
+            print("--" * 50)
+        start_image_width = img.shape[0]
+
+        best_bboxes = []
+        scores = []
+        for i, bd in enumerate(self.bds):
+            model_img_size = bd.session.get_inputs()[0].shape[2]
+            if model_img_size != img.shape[0]:
+                input_image = bd.preprocess_image(
+                    cv2.resize(img, (model_img_size, model_img_size))
+                )
+            else:
+                input_image = bd.preprocess_image(img)
+
+            best_bbox, max_score = bd.postprocess_output(
+                bd.session.run(None, {bd.session.get_inputs()[0].name: input_image})
+            )
+            scores.append(max_score)
+            best_bbox = self.normalize_bbox(best_bbox, model_img_size)
+            best_bbox = self.denormalize_bbox(best_bbox, start_image_width)
+            if best_bbox != []:
+                best_bboxes.append(best_bbox)
+            if self.verbose:
+                self.print_bbox(best_bbox, max_score)
+
+        if len(best_bboxes) == 0:
+            if self.verbose:
+                print("No bboxes detected, returning empty bbox")
+            return [], 0
+
+        # check for models heavily disagreeing
+        if self.bboxes_disagree(best_bboxes):
+            if self.verbose:
+                print("Bboxes disagree, returning empty bbox")
+            return [], 0
+
+        # otherwise, return an avreage between the models
+        avg_bbox = self.get_avg_bbox(best_bboxes)
+        avg_score = np.mean(scores) if scores else 0
+        if self.verbose:
+            print(f"Avg bbox: {avg_bbox}")
+        return avg_bbox, avg_score
 
 
 class BobberDetector:
     def __init__(self, model_path: str):
         self.session = onnxruntime.InferenceSession(model_path)
+        self.input_image_size = None
+        self.output_image_size = None
 
     def non_max_suppression(self, prediction, conf_thres=0.25, iou_thres=0.45):
         """Applies Non-Maximum Suppression to filter overlapping detections and return boxes with their scores."""
@@ -48,33 +159,44 @@ class BobberDetector:
 
         return inter_area / (box1_area + box2_area - inter_area)
 
-    def run_detection(self, img, conf_thres=0.25, iou_thres=0.45):
-        # Load and preprocess image
-        if type(img) is not np.ndarray:
-            print(f'BobberDetector.run_detection() expects img to be of type np.ndarray, but got {type(img)}')
-            return [], []
-        if img.shape[0] != img.shape[1] or img.shape[2] != 3:
-            print(f'BobberDetector.run_detection() expects img to be of shape (x, x, 3), but got {img.shape}')
-            print('Make sure the image is square and has 3 channels')
-            return [], []
-
+    def preprocess_image(self, img):
         img_size = img.shape[0]
+        self.input_image_size = img_size
+        expected_model_dims = self.session.get_inputs()[0].shape[2]
+        #resize the image to the expected model dims
+        img = cv2.resize(img, (expected_model_dims, expected_model_dims))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
         img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
         img = np.transpose(img, (2, 0, 1)).reshape(
-            1, 3, img_size, img_size
-        )  # Convert to [1, 3, img_size, img_size]
+            1, 3, expected_model_dims, expected_model_dims
+        )
+        self.output_image_size = expected_model_dims
+        return img
 
-        # Inference
-        pred = self.session.run(None, {self.session.get_inputs()[0].name: img})
+    def postprocess_output(self, pred):
+        def convertbbox2list(bbox):
+            bbox = bbox.tolist()
+            return [int(x) for x in bbox]
 
-        # Apply NMS
+        def convert_bbox_to_input_dims(bbox,input_image_size,output_image_size):
+            normalized_bbox = [i / output_image_size for i in bbox]
+            bbox_for_input_image = [int(i * input_image_size) for i in normalized_bbox]
+            return bbox_for_input_image
+
         boxes, scores = self.non_max_suppression(
-            torch.tensor(pred[0]), conf_thres, iou_thres
+            torch.tensor(pred[0]), conf_thres=0.25, iou_thres=0.45
         )
 
-        return boxes, scores
+        if len(boxes) == 0:
+            return [], 0
+
+        scores = np.array(scores)
+        max_score = np.max(scores)
+        index_of_max_score = np.where(scores == max_score)[0][0]
+        best_bbox = boxes[index_of_max_score]
+        best_bbox = convertbbox2list(best_bbox)
+        best_bbox = convert_bbox_to_input_dims(best_bbox,self.input_image_size,self.output_image_size)
+        return best_bbox, max_score
 
     def draw_bbox(
         self,
@@ -108,20 +230,10 @@ class BobberDetector:
         )
 
     def detect_object_in_image(self, img, draw_result=False):
-        boxes, scores = self.run_detection(img, conf_thres=0.25, iou_thres=0.45)
-        if len(boxes) == 0:
-            return [], 0
-        scores = np.array(scores)
-        max_score = np.max(scores)
-        index_of_max_score = np.where(scores == max_score)[0][0]
-        best_box = boxes[index_of_max_score]
-
+        img = self.preprocess_image(img)
+        best_bbox, max_score = self.postprocess_output(
+            self.session.run(None, {self.session.get_inputs()[0].name: img})
+        )
         if draw_result:
-            self.draw_bbox(img, best_box, "best", (255, 0, 0))
-
-        def convertbbox2list(bbox):
-            bbox = bbox.tolist()
-            return [int(x) for x in bbox]
-
-        best_box = convertbbox2list(best_box)
-        return best_box, max_score
+            self.draw_bbox(img, best_bbox, "best", (255, 0, 0))
+        return best_bbox, max_score
